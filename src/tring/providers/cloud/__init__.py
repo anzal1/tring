@@ -315,3 +315,23 @@ class OpenAICompatibleLLM(LLMProvider):
 
                 if delta_text or usage:
                     yield LLMChunk(text=delta_text, usage=usage, finish=bool(usage))
+
+
+# Registers AnthropicLLM ("llm","anthropic") and GeminiLLM ("llm","gemini");
+# see that module's docstring for endpoint/usage verification sources.
+from tring.providers.cloud import llm_extra as _llm_extra  # noqa: F401,E402
+
+# Registers OpenAIRealtimeS2S ("s2s","openai_realtime") and UltravoxS2S
+# ("s2s","ultravox"); see that module's docstring for endpoint/usage
+# verification sources.
+from tring.providers.cloud import s2s_extra as _s2s_extra  # noqa: F401,E402
+
+# Registers AssemblyAISTT ("stt","assemblyai"), OpenAISTT ("stt","openai_stt"),
+# and SarvamSTT ("stt","sarvam"); see that module's docstring for
+# endpoint/usage verification sources.
+from tring.providers.cloud import stt_extra as _stt_extra  # noqa: F401,E402
+
+# Registers CartesiaTTS ("tts","cartesia"), OpenAITTS ("tts","openai_tts"),
+# and SarvamTTS ("tts","sarvam_tts"); see that module's docstring for
+# endpoint/usage verification sources.
+from tring.providers.cloud import tts_extra as _tts_extra  # noqa: F401,E402

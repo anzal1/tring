@@ -202,12 +202,14 @@ The triangle is real: **latency, control, voice ownership. Pick two.** Cascade m
 
 All providers are lazy-loaded. The core install pulls only `pydantic` and `pyyaml`; vendor SDKs are never imported unless selected. API keys are referenced by environment variable name, never stored in specs.
 
-| Slot | Local (`pip install "tring[local]"`) | Cloud (`pip install "tring[cloud]"`) |
+| Slot | Local | Cloud |
 |---|---|---|
-| STT | `faster_whisper`, `text_input` (dev) | `deepgram` |
-| LLM | `ollama` (exact token usage) | `openai_compatible` (any OpenAI-style API, cached-token aware) |
-| TTS | `kokoro` | `elevenlabs` |
-| S2S | | bring your own via `S2SProvider` |
+| STT | `faster_whisper`, `text_input` | `deepgram`, `assemblyai`, `openai_stt`, `sarvam` |
+| LLM | `ollama` | `openai_compatible`, `anthropic`, `gemini` |
+| TTS | `kokoro`, `piper` | `elevenlabs`, `openai_tts`, `sarvam_tts`, `cartesia` |
+| S2S | | `openai_realtime`, `ultravox` |
+
+Full provider reference: [docs/PROVIDERS.md](docs/PROVIDERS.md)
 
 Routing is per-language, because the best engine for one language is often the wrong one for another:
 

@@ -10,13 +10,14 @@
 - Local cascade stack: faster-whisper STT, Ollama LLM, Kokoro TTS (no paid services required).
 - Console transport for text-based dev loops.
 - WebSocket transport for raw audio (16kHz mono linear16).
-- Cloud provider starters (API contracts, no keys shipped).
+- Initial cloud providers: Deepgram (STT), ElevenLabs (TTS), OpenAI-compatible (LLM).
 
 ## v0.2
 
+- Expanded provider matrix: 2 local and 4 cloud STT engines, 1 local and 3 cloud LLM providers, 2 local and 4 cloud TTS engines, 2 cloud S2S models.
 - Streaming STT: true incremental transcription (character by character) instead of buffered phrases.
 - Silero VAD: local voice activity detection for natural turn-taking without vendor lock-in.
-- S2S providers: named by capability category (e.g. "voice-cloning", "real-time-translation") rather than vendor names.
+- S2S providers: Ultralow latency with tool support (OpenAI Realtime, Ultravox).
 - Hybrid maturity: seamless S2S-to-cascade fallback for tool calling and advanced reasoning.
 - SIP ingress: FreeSWITCH gateway pattern for telephone call integration.
 - Barge-in over real audio: caller can interrupt the bot without waiting for TTS to finish, with latency budgets that make it structurally possible.

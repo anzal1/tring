@@ -89,7 +89,7 @@ class RateCard(BaseModel):
 # fresh `as_of` date rather than depending on the numbers below.
 # ---------------------------------------------------------------------------
 DEFAULT_RATES = RateCard(
-    version="0.1.0-starter",
+    version="0.2.0-starter",
     rates=[
         # Deepgram Nova-2 streaming STT, pay-as-you-go list price.
         Rate(
@@ -168,6 +168,199 @@ DEFAULT_RATES = RateCard(
             price_per_unit=0.0,
             currency="USD",
             as_of="2025-06-01",
+        ),
+        # ------------------------------------------------------------------
+        # v0.2 provider expansion. These rows are copied *by value* from each
+        # provider module's own exported ``*_RATES`` list (see
+        # providers/cloud/{llm,stt,tts,s2s}_extra.py and
+        # providers/local/tts_extra.py for the citation of the vendor
+        # pricing page each number was verified against, as_of "2026-09").
+        #
+        # They are duplicated here rather than imported, on purpose: this
+        # module's own docstring promises "plain data: no vendor SDKs, no
+        # network calls" for the starter card, and provider modules import
+        # ``Rate`` from *this* file, so importing them back would both be a
+        # circular import and would force ``httpx``/``websockets`` to be
+        # importable just to build a price list. Keep both copies in sync
+        # by hand when a provider's rate changes.
+        # ------------------------------------------------------------------
+        # -- STT --
+        Rate(
+            component=CostComponent.STT,
+            provider="assemblyai",
+            model=None,
+            unit_name="audio_seconds",
+            price_per_unit=0.15 / 3600,  # $0.15/hr
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.STT,
+            provider="openai_stt",
+            model="whisper-1",
+            unit_name="audio_seconds",
+            price_per_unit=0.006 / 60,  # $0.006/min
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.STT,
+            provider="openai_stt",
+            model="gpt-4o-transcribe",
+            unit_name="tokens_in",
+            price_per_unit=2.50e-6,  # $2.50 / 1M input tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.STT,
+            provider="openai_stt",
+            model="gpt-4o-transcribe",
+            unit_name="tokens_out",
+            price_per_unit=10.0e-6,  # $10.00 / 1M output tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.STT,
+            provider="openai_stt",
+            model="gpt-4o-mini-transcribe",
+            unit_name="tokens_in",
+            price_per_unit=1.25e-6,  # $1.25 / 1M input tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.STT,
+            provider="openai_stt",
+            model="gpt-4o-mini-transcribe",
+            unit_name="tokens_out",
+            price_per_unit=5.0e-6,  # $5.00 / 1M output tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.STT,
+            provider="sarvam",
+            model=None,
+            unit_name="audio_seconds",
+            price_per_unit=30 / 3600,  # ₹30/hr (Sarvam publishes no USD price)
+            currency="INR",
+            as_of="2026-09",
+        ),
+        # -- LLM --
+        Rate(
+            component=CostComponent.LLM,
+            provider="anthropic",
+            model="claude-sonnet-5",
+            unit_name="tokens_in",
+            price_per_unit=0.000002,  # $2 / 1M input tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.LLM,
+            provider="anthropic",
+            model="claude-sonnet-5",
+            unit_name="tokens_out",
+            price_per_unit=0.00001,  # $10 / 1M output tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.LLM,
+            provider="gemini",
+            model="gemini-2.5-flash",
+            unit_name="tokens_in",
+            price_per_unit=0.0000003,  # $0.30 / 1M input tokens (paid tier)
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.LLM,
+            provider="gemini",
+            model="gemini-2.5-flash",
+            unit_name="tokens_out",
+            price_per_unit=0.0000025,  # $2.50 / 1M output tokens (incl. thinking)
+            currency="USD",
+            as_of="2026-09",
+        ),
+        # -- TTS --
+        Rate(
+            component=CostComponent.TTS,
+            provider="cartesia",
+            model="sonic-3",
+            unit_name="tts_chars",
+            # No verifiable per-character rate is published (plan-level credit
+            # allowances only) -- priced 0.0 rather than guessing a
+            # credit-to-character ratio. See providers/cloud/tts_extra.py.
+            price_per_unit=0.0,
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.TTS,
+            provider="openai_tts",
+            model="tts-1",
+            unit_name="tts_chars",
+            price_per_unit=0.000015,  # $15.00 / 1M characters
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.TTS,
+            provider="openai_tts",
+            model="tts-1-hd",
+            unit_name="tts_chars",
+            price_per_unit=0.00003,  # $30.00 / 1M characters
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.TTS,
+            provider="sarvam_tts",
+            model="bulbul:v3",
+            unit_name="tts_chars",
+            price_per_unit=0.003,  # ₹30 / 10,000 characters
+            currency="INR",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.TTS,
+            provider="piper",
+            model=None,
+            unit_name="tts_chars",
+            price_per_unit=0.0,  # local, free
+            currency="USD",
+            as_of="2026-09",
+        ),
+        # -- S2S --
+        Rate(
+            component=CostComponent.S2S,
+            provider="openai_realtime",
+            model="gpt-realtime-2.1",
+            unit_name="tokens_in",
+            price_per_unit=0.000032,  # $32.00 / 1M audio input tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.S2S,
+            provider="openai_realtime",
+            model="gpt-realtime-2.1",
+            unit_name="tokens_out",
+            price_per_unit=0.000064,  # $64.00 / 1M audio output tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.S2S,
+            provider="ultravox",
+            model=None,  # priced per call-minute, not per model
+            unit_name="audio_seconds",
+            price_per_unit=0.05 / 60,  # $0.05 / minute
+            currency="USD",
+            as_of="2026-09",
         ),
     ],
 )

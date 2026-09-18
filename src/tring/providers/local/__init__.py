@@ -598,3 +598,7 @@ __all__ = [
     "OllamaLLM",
     "TextInputSTT",
 ]
+
+# Registers PiperTTS ("tts","piper"); see that module's docstring for
+# API/usage verification sources.
+from tring.providers.local import tts_extra as _tts_extra  # noqa: F401,E402

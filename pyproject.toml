@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tring"
-version = "0.1.0"
+version = "0.2.0"
 description = "Open-source voice agent stack: one agent contract, any runtime (cascade / speech-to-speech / hybrid), local-first, cost-transparent."
 readme = "README.md"
 license = "MIT"
