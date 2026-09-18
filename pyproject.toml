@@ -41,7 +41,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/anzalabidi/tring"
+Homepage = "https://github.com/anzal1/tring"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/tring"]
