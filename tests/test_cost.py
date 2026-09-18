@@ -1,4 +1,4 @@
-"""Tests for alaap.cost: rate lookup, metering, and reporting.
+"""Tests for trunkline.cost: rate lookup, metering, and reporting.
 
 No network, no vendor SDKs, no GPU — everything here runs against
 ``DEFAULT_RATES`` and a plain ``CallSession`` with an injected clock.
@@ -6,13 +6,13 @@ No network, no vendor SDKs, no GPU — everything here runs against
 
 from __future__ import annotations
 
-from alaap.agent import AgentSpec
-from alaap.cost.meter import CostMeter
-from alaap.cost.rates import DEFAULT_RATES, Rate, RateCard
-from alaap.cost.report import CostReport, denominator_ladder
-from alaap.events import CostComponent, CostRecorded, SessionEnded
-from alaap.providers.base import Usage
-from alaap.session import CallSession
+from trunkline.agent import AgentSpec
+from trunkline.cost.meter import CostMeter
+from trunkline.cost.rates import DEFAULT_RATES, Rate, RateCard
+from trunkline.cost.report import CostReport, denominator_ladder
+from trunkline.events import CostComponent, CostRecorded, SessionEnded
+from trunkline.providers.base import Usage
+from trunkline.session import CallSession
 
 
 def make_session(session_id: str = "sess-1") -> CallSession:

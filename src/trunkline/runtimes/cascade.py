@@ -1,6 +1,6 @@
 """CascadeRuntime — the reference STT -> LLM -> TTS pipeline.
 
-This is the runtime everything else in Alaap is measured against, and it is
+This is the runtime everything else in Trunkline is measured against, and it is
 written to be read. There is no framework here: an ``asyncio.Queue`` of audio
 frames, three provider streams, and four primitives wired together in a way
 that makes the latency behaviour visible rather than buried.
@@ -68,34 +68,34 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import suppress
 from typing import Any
 
-from alaap.agent import ProviderSelection, ToolDef
-from alaap.cost.meter import CostMeter
-from alaap.events import (
+from trunkline.agent import ProviderSelection, ToolDef
+from trunkline.cost.meter import CostMeter
+from trunkline.events import (
     CostComponent,
     SessionEnded,
     SessionError,
     SessionStarted,
     UserTranscript,
 )
-from alaap.primitives.choreography import (
+from trunkline.primitives.choreography import (
     ChoreographyError,
     augment_tool_schema,
     execute,
     parse_choreographed_call,
 )
-from alaap.primitives.interruption import PlaybackLedger
-from alaap.primitives.language_lock import LanguageLock
-from alaap.primitives.speak_parser import (
+from trunkline.primitives.interruption import PlaybackLedger
+from trunkline.primitives.language_lock import LanguageLock
+from trunkline.primitives.speak_parser import (
     FallbackText,
     ParserEvent,
     SpeakDelta,
     SpeakToolParser,
     ToolCallReady,
 )
-from alaap.providers import registry
-from alaap.providers.base import LLMProvider, STTProvider, TTSProvider, Usage
-from alaap.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
-from alaap.session import CallSession
+from trunkline.providers import registry
+from trunkline.providers.base import LLMProvider, STTProvider, TTSProvider, Usage
+from trunkline.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
+from trunkline.session import CallSession
 
 #: The output contract every cascade turn is generated against.
 #:
@@ -277,7 +277,7 @@ class CascadeRuntime(RuntimeAdapter):
             back to ``ToolDef.name``). Specs stay serializable precisely
             because they carry a handler *name*; binding the callable happens
             here, at the last possible moment.
-        meter: optional :class:`~alaap.cost.meter.CostMeter`. Every provider
+        meter: optional :class:`~trunkline.cost.meter.CostMeter`. Every provider
             ``Usage`` is routed to it as the stage that produced it completes,
             so the cost ledger is correct even on a call that ends mid-turn.
         language: language to route providers and the language lock with.

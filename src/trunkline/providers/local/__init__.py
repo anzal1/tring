@@ -1,12 +1,12 @@
 """Local, open-model providers: faster-whisper STT, Ollama LLM, Kokoro TTS.
 
-These are the providers that make Alaap's "local-first" claim real: a complete
+These are the providers that make Trunkline's "local-first" claim real: a complete
 cascade pipeline that runs on your own hardware at $0 of vendor spend.
 
 Two rules shape every class in this file.
 
 **Lazy imports.** Importing this module must stay cheap and must never fail,
-because :func:`alaap.providers.registry._load_builtin` imports it eagerly just
+because :func:`trunkline.providers.registry._load_builtin` imports it eagerly just
 to run the ``@register`` decorators. A core install has no ML stack, so every
 heavy dependency (``faster_whisper``, ``httpx``, ``kokoro_onnx``, ``numpy``) is
 imported *inside* the method that needs it, and a missing one is re-raised as
@@ -14,7 +14,7 @@ an ``ImportError`` that names the extra to install. Import-time failure would
 take down provider discovery for everybody, including users who only wanted a
 cloud provider.
 
-**Honest usage.** Every :class:`~alaap.providers.base.Usage` here is measured,
+**Honest usage.** Every :class:`~trunkline.providers.base.Usage` here is measured,
 not inferred, so all of them carry ``estimated=False``. We know the exact audio
 duration we fed to Whisper, Ollama reports exact token counts, and we count the
 exact characters we hand to Kokoro. When a provider cannot measure, it must say
@@ -33,7 +33,7 @@ import wave
 from collections.abc import AsyncIterator
 from typing import Any
 
-from alaap.providers.base import (
+from trunkline.providers.base import (
     LLMChunk,
     LLMProvider,
     STTProvider,
@@ -42,10 +42,10 @@ from alaap.providers.base import (
     TTSProvider,
     Usage,
 )
-from alaap.providers.registry import register
-from alaap.runtimes.base import AudioFrame
+from trunkline.providers.registry import register
+from trunkline.runtimes.base import AudioFrame
 
-_LOCAL_EXTRA = 'pip install "alaap[local]"'
+_LOCAL_EXTRA = 'pip install "trunkline[local]"'
 
 # Canonical wire format for the whole stack (see AudioFrame).
 WIRE_SAMPLE_RATE = 16000
@@ -63,7 +63,7 @@ def _missing(package: str, why: str) -> ImportError:
 
     The message names the concrete package *and* the extra, because the most
     common failure mode for a local stack is a user who installed plain
-    ``alaap`` and then pointed an agent spec at ``faster_whisper``.
+    ``trunkline`` and then pointed an agent spec at ``faster_whisper``.
     """
     return ImportError(
         f"{package} is required to {why}. Install the local provider stack with:"
@@ -123,7 +123,7 @@ class TextInputSTT(STTProvider):
     """An STT provider that "transcribes" UTF-8 text carried in the PCM field.
 
     This is a deliberate trick, and it is the single highest-leverage one in
-    the repo. :class:`~alaap.runtimes.base.AudioFrame` is just bytes, so a
+    the repo. :class:`~trunkline.runtimes.base.AudioFrame` is just bytes, so a
     transport can put ``"book me a table".encode("utf-8")`` in ``pcm`` and this
     provider hands it back as a final transcript. The whole runtime above it --
     turn loop, envelope parsing, tool choreography, interruption ledger, cost
@@ -165,7 +165,7 @@ class FasterWhisperSTT(STTProvider):
     **v0.1 is batch-per-utterance, not streaming.** Frames are buffered until a
     silence-based endpointer decides the caller stopped talking, and only then
     does the whole utterance go through the model, producing a single final
-    :class:`~alaap.providers.base.STTResult`. No partial hypotheses are emitted.
+    :class:`~trunkline.providers.base.STTResult`. No partial hypotheses are emitted.
 
     That is a real limitation and worth stating plainly: partials let a runtime
     start the LLM turn before the caller finishes, which is worth a few hundred
@@ -316,7 +316,7 @@ class OllamaLLM(LLMProvider):
     per token-ish delta, and a final object with ``done: true`` that carries
     exact counters: ``prompt_eval_count`` and ``eval_count``. Those are real
     measurements from the runtime that did the work, so the final
-    :class:`~alaap.providers.base.LLMChunk` reports ``estimated=False``.
+    :class:`~trunkline.providers.base.LLMChunk` reports ``estimated=False``.
 
     A local model has no dollar rate, but the token counts still matter: they
     are what the cost model turns into compute-seconds, and they are how you
@@ -348,7 +348,7 @@ class OllamaLLM(LLMProvider):
 
     @staticmethod
     def _map_tools(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
-        """Adapt Alaap tool schemas to Ollama's OpenAI-shaped ``tools`` array.
+        """Adapt Trunkline tool schemas to Ollama's OpenAI-shaped ``tools`` array.
 
         Schemas that already arrive wrapped (``{"type": "function", ...}``) are
         passed through untouched, so a caller that has its own opinion about
@@ -511,7 +511,7 @@ class KokoroTTS(TTSProvider):
         low-pass filter folds content above 8 kHz back into the audible band as
         a faint metallic edge. On a telephony-grade path (which is bandlimited
         around 3.4 kHz anyway) it is inaudible, and it keeps the local stack
-        free of a scipy/soxr dependency. A future ``alaap[hifi]`` extra should
+        free of a scipy/soxr dependency. A future ``trunkline[hifi]`` extra should
         use a polyphase resampler for anything wideband.
         """
         import numpy as np

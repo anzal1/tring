@@ -1,6 +1,6 @@
-# Contributing to Alaap
+# Contributing to Trunkline
 
-Thank you for your interest in contributing to Alaap. This guide covers development setup, code standards, and submission guidelines.
+Thank you for your interest in contributing to Trunkline. This guide covers development setup, code standards, and submission guidelines.
 
 ## Development Setup
 
@@ -26,7 +26,7 @@ uv pip install -e ".[dev]"
 
 - Full type hints on all public APIs and module-level code.
 - `ruff check src tests` must pass with no errors.
-- `mypy src/alaap --strict` must pass (or at least have zero new errors).
+- `mypy src/trunkline --strict` must pass (or at least have zero new errors).
 - Target Python 3.11+ throughout.
 
 ### Testing

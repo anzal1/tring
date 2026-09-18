@@ -28,7 +28,7 @@ from typing import Any
 
 import httpx
 
-from alaap.providers.base import (
+from trunkline.providers.base import (
     LLMChunk,
     LLMProvider,
     STTProvider,
@@ -37,8 +37,8 @@ from alaap.providers.base import (
     TTSProvider,
     Usage,
 )
-from alaap.providers.registry import register
-from alaap.runtimes.base import AudioFrame
+from trunkline.providers.registry import register
+from trunkline.runtimes.base import AudioFrame
 
 
 def _read_api_key(env_var: str, provider_label: str) -> str:
@@ -96,7 +96,7 @@ class DeepgramSTT(STTProvider):
         except ImportError as exc:
             raise ImportError(
                 "DeepgramSTT needs the 'websockets' package. Install the "
-                "optional cloud extra: pip install 'alaap[cloud]'"
+                "optional cloud extra: pip install 'trunkline[cloud]'"
             ) from exc
         import asyncio
 

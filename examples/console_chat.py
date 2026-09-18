@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Text-only console chat with a local LLM agent.
 
-A simple example showing how to run an alaap agent entirely locally via the
+A simple example showing how to run an trunkline agent entirely locally via the
 console transport. This uses:
 - Ollama for the LLM (no API keys, runs on your machine)
 - Kokoro for text-to-speech synthesis (local)
@@ -11,7 +11,7 @@ This is a great starting point for local development and testing. Zero cloud
 dependencies beyond what Ollama provides.
 
 Setup:
-    1. Install alaap with local dependencies:
+    1. Install trunkline with local dependencies:
        pip install -e ".[local]"
     2. Start Ollama and pull a model:
        ollama serve &
@@ -29,12 +29,12 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Add the source directory to the path so we can import alaap.
+# Add the source directory to the path so we can import trunkline.
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from alaap import AgentSpec, CallSession
-from alaap.cost.rates import DEFAULT_RATES
-from alaap.transports.console import ConsoleTransport
+from trunkline import AgentSpec, CallSession
+from trunkline.cost.rates import DEFAULT_RATES
+from trunkline.transports.console import ConsoleTransport
 
 
 async def main() -> None:
@@ -54,11 +54,11 @@ async def main() -> None:
     # Import the runtime here so the dependency is lazy.
     # If CascadeRuntime is not available, the error message will guide the user.
     try:
-        from alaap.runtimes.cascade import CascadeRuntime
+        from trunkline.runtimes.cascade import CascadeRuntime
     except ImportError as e:
         print(
             f"Error: CascadeRuntime not found. "
-            f"Make sure alaap is installed with local support. "
+            f"Make sure trunkline is installed with local support. "
             f"({e})",
             file=sys.stderr,
         )
@@ -70,7 +70,7 @@ async def main() -> None:
     # Optional: attach a cost meter to track usage.
     # CostMeter will subscribe to session events and record costs.
     try:
-        from alaap.cost.meter import CostMeter
+        from trunkline.cost.meter import CostMeter
 
         meter = CostMeter(session, DEFAULT_RATES)
         print("Cost tracking enabled (rates as of 2025-06-01)", file=sys.stderr)

@@ -1,6 +1,6 @@
-# Alaap Architecture
+# Trunkline Architecture
 
-Alaap (आलाप, "the opening of a conversation") is an open-source, production-grade voice agent stack.
+Trunkline is an open-source, production-grade voice agent stack: the trunk line your voice agents run on.
 One agent definition, any runtime, any provider — or no paid provider at all —
 and you always know what a call costs.
 
@@ -25,7 +25,7 @@ and you always know what a call costs.
 ## Package layout
 
 ```
-src/alaap/
+src/trunkline/
   agent.py          AgentSpec — the single agent contract (pydantic, YAML-loadable)
   events.py         Unified session event model (all runtimes emit these)
   session.py        CallSession — one live conversation, event bus, lifecycle

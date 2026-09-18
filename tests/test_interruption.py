@@ -1,4 +1,4 @@
-"""Tests for alaap.primitives.interruption.PlaybackLedger.
+"""Tests for trunkline.primitives.interruption.PlaybackLedger.
 
 Uses a bare CallSession bound to a minimal AgentSpec (no runtime, no
 providers, no network) and reads back session.history to assert on emitted
@@ -8,10 +8,10 @@ text/state bookkeeping over the session event bus.
 
 from __future__ import annotations
 
-from alaap.agent import AgentSpec
-from alaap.events import BotSpeechPlayed, BotUtterance, Interruption
-from alaap.primitives.interruption import PlaybackLedger
-from alaap.session import CallSession
+from trunkline.agent import AgentSpec
+from trunkline.events import BotSpeechPlayed, BotUtterance, Interruption
+from trunkline.primitives.interruption import PlaybackLedger
+from trunkline.session import CallSession
 
 
 def make_session() -> CallSession:

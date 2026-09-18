@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
-from alaap.session import CallSession
+from trunkline.session import CallSession
 
 
 @dataclass(frozen=True)

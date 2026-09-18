@@ -11,8 +11,8 @@ import copy
 
 import pytest
 
-from alaap.agent import LanguagePolicy
-from alaap.primitives.language_lock import LanguageLock, prefix_stable
+from trunkline.agent import LanguagePolicy
+from trunkline.primitives.language_lock import LanguageLock, prefix_stable
 
 
 def make_lock(**kwargs: object) -> LanguageLock:

@@ -40,7 +40,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 
-from alaap.events import (
+from trunkline.events import (
     BotUtterance,
     CostComponent,
     CostRecorded,
@@ -49,10 +49,10 @@ from alaap.events import (
     TranscriptAvailability,
     UserTranscript,
 )
-from alaap.providers import registry
-from alaap.providers.base import S2SProvider, Usage
-from alaap.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
-from alaap.session import CallSession
+from trunkline.providers import registry
+from trunkline.providers.base import S2SProvider, Usage
+from trunkline.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
+from trunkline.session import CallSession
 
 _CAPABILITIES = RuntimeCapabilities(
     live_transcripts=False,

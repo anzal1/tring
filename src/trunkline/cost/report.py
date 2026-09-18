@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from alaap.events import CostRecorded, SessionEnded, SessionEvent
+from trunkline.events import CostRecorded, SessionEnded, SessionEvent
 
 
 class CostReport(BaseModel):

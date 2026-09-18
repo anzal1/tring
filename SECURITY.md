@@ -4,7 +4,7 @@
 
 Please report security vulnerabilities privately via GitHub's security advisory process:
 
-1. Go to the [Alaap repository](https://github.com/anzalabidi/alaap).
+1. Go to the [Trunkline repository](https://github.com/anzalabidi/trunkline).
 2. Click the "Security" tab.
 3. Select "Report a vulnerability" and fill in the details.
 

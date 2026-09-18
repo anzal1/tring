@@ -62,16 +62,16 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from alaap.events import ToolCallCompleted, ToolCallStarted
-from alaap.primitives.choreography import (
+from trunkline.events import ToolCallCompleted, ToolCallStarted
+from trunkline.primitives.choreography import (
     ChoreographyError,
     ToolHandler,
     execute,
     parse_choreographed_call,
 )
-from alaap.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
-from alaap.runtimes.s2s import S2SRuntime
-from alaap.session import CallSession
+from trunkline.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
+from trunkline.runtimes.s2s import S2SRuntime
+from trunkline.session import CallSession
 
 _CAPABILITIES = RuntimeCapabilities(
     live_transcripts=False,

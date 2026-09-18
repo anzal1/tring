@@ -25,7 +25,7 @@ import contextlib
 import sys
 from typing import TYPE_CHECKING
 
-from alaap.events import (
+from trunkline.events import (
     BotSpeechPlayed,
     BotUtterance,
     CostRecorded,
@@ -35,10 +35,10 @@ from alaap.events import (
     ToolCallStarted,
     UserTranscript,
 )
-from alaap.runtimes.base import AudioFrame
+from trunkline.runtimes.base import AudioFrame
 
 if TYPE_CHECKING:
-    from alaap.runtimes.base import RuntimeAdapter
+    from trunkline.runtimes.base import RuntimeAdapter
 
 
 # ANSI color codes for terminal output (work in light and dark themes)

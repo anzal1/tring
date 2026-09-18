@@ -18,10 +18,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from alaap.cost.rates import RateCard
-from alaap.events import CostComponent, CostRecorded
-from alaap.providers.base import Usage
-from alaap.session import CallSession
+from trunkline.cost.rates import RateCard
+from trunkline.events import CostComponent, CostRecorded
+from trunkline.providers.base import Usage
+from trunkline.session import CallSession
 
 
 class CostMeter:

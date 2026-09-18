@@ -12,8 +12,8 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Callable
 
-from alaap.agent import AgentSpec
-from alaap.events import SessionEvent
+from trunkline.agent import AgentSpec
+from trunkline.events import SessionEvent
 
 
 class CallSession:
