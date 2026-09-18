@@ -62,16 +62,16 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from awaaz.events import ToolCallCompleted, ToolCallStarted
-from awaaz.primitives.choreography import (
+from alaap.events import ToolCallCompleted, ToolCallStarted
+from alaap.primitives.choreography import (
     ChoreographyError,
     ToolHandler,
     execute,
     parse_choreographed_call,
 )
-from awaaz.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
-from awaaz.runtimes.s2s import S2SRuntime
-from awaaz.session import CallSession
+from alaap.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
+from alaap.runtimes.s2s import S2SRuntime
+from alaap.session import CallSession
 
 _CAPABILITIES = RuntimeCapabilities(
     live_transcripts=False,

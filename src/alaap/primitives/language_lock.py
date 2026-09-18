@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
-from awaaz.agent import LanguagePolicy
+from alaap.agent import LanguagePolicy
 
 # Template for the enforcement text. Kept as a module-level constant (not a
 # method-local f-string) so tooling and tests can inspect/patch it, and so the

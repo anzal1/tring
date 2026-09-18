@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from awaaz.primitives.speak_parser import (
+from alaap.primitives.speak_parser import (
     FallbackText,
     ParserEvent,
     SpeakDelta,

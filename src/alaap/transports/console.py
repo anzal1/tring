@@ -25,7 +25,7 @@ import contextlib
 import sys
 from typing import TYPE_CHECKING
 
-from awaaz.events import (
+from alaap.events import (
     BotSpeechPlayed,
     BotUtterance,
     CostRecorded,
@@ -35,10 +35,10 @@ from awaaz.events import (
     ToolCallStarted,
     UserTranscript,
 )
-from awaaz.runtimes.base import AudioFrame
+from alaap.runtimes.base import AudioFrame
 
 if TYPE_CHECKING:
-    from awaaz.runtimes.base import RuntimeAdapter
+    from alaap.runtimes.base import RuntimeAdapter
 
 
 # ANSI color codes for terminal output (work in light and dark themes)

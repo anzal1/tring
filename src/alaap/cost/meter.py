@@ -18,10 +18,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from awaaz.cost.rates import RateCard
-from awaaz.events import CostComponent, CostRecorded
-from awaaz.providers.base import Usage
-from awaaz.session import CallSession
+from alaap.cost.rates import RateCard
+from alaap.events import CostComponent, CostRecorded
+from alaap.providers.base import Usage
+from alaap.session import CallSession
 
 
 class CostMeter:

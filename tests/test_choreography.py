@@ -12,9 +12,9 @@ from typing import Any
 
 import pytest
 
-from awaaz.agent import ToolDef
-from awaaz.events import ToolCallCompleted, ToolCallStarted
-from awaaz.primitives.choreography import (
+from alaap.agent import ToolDef
+from alaap.events import ToolCallCompleted, ToolCallStarted
+from alaap.primitives.choreography import (
     ChoreographedCall,
     ChoreographyError,
     ToolOutcome,
@@ -22,7 +22,7 @@ from awaaz.primitives.choreography import (
     execute,
     parse_choreographed_call,
 )
-from awaaz.session import CallSession
+from alaap.session import CallSession
 
 
 class FakeClock:
@@ -39,7 +39,7 @@ class FakeClock:
 
 
 def make_session(clock: FakeClock | None = None) -> CallSession:
-    from awaaz.agent import AgentSpec
+    from alaap.agent import AgentSpec
 
     agent = AgentSpec(name="test-agent", persona="You are a test agent.")
     return CallSession(agent=agent, session_id="sess-1", clock=clock or FakeClock())

@@ -1,8 +1,8 @@
-# Awaaz
+# Alaap
 
 **Open-source voice agent stack. One agent contract, any runtime, honest costs.**
 
-Awaaz (आवाज़, *"voice"*) lets you define a voice agent once and run it on any of
+Alaap (आलाप, *"the opening of a conversation"*) lets you define a voice agent once and run it on any of
 three architectures — a cascaded pipeline (STT → LLM → TTS), a speech-to-speech
 model, or a hybrid of the two — without rewriting anything. It ships with a
 fully local, $0-per-minute pipeline as a first-class citizen, and it tells you
@@ -12,7 +12,7 @@ exactly what every call costs.
 > of production telephony calls, in multiple languages, where callers
 > code-switch mid-sentence and two seconds of silence means a hangup.
 
-## Why Awaaz
+## Why Alaap
 
 - **One contract, three runtimes.** `AgentSpec` is plain YAML. Switching a
   customer from a cascade to speech-to-speech is a config change: same tools,
@@ -21,14 +21,14 @@ exactly what every call costs.
   Production-tuned turn-taking and interruption handling with zero cloud
   dependencies. Cloud providers are opt-in upgrades.
 - **Latency as correctness.** In voice, dead air is a conversational error.
-  Awaaz's primitives make it structurally impossible rather than patching it:
+  Alaap's primitives make it structurally impossible rather than patching it:
   - *Tool-call choreography* — the model cannot emit a tool call without
     declaring what to say while it runs (`waiting_message`, `spoken_mode`,
     `post_tool_response` are schema-required fields).
   - *Speak-while-thinking* — a character-level streaming parser flushes the
     `speak` field to TTS while the tool call is still being generated.
   - *Interruption reconciliation* — TTS generates faster than audio plays; on
-    a barge-in, Awaaz annotates context so the model never references words
+    a barge-in, Alaap annotates context so the model never references words
     the caller never actually heard.
   - *Cache-safe language lock* — the language directive is re-asserted every
     turn without breaking prompt-cache byte-stability.
@@ -36,13 +36,13 @@ exactly what every call costs.
   Per-call, per-connected-minute, per-conversation, and per-outcome roll-ups,
   so you optimize the denominator instead of the rate.
 - **Per-language provider routing.** Real callers code-switch. The best STT
-  engine for one language is often the wrong one for another; Awaaz routes
+  engine for one language is often the wrong one for another; Alaap routes
   STT/TTS/LLM per agent *and* per detected language.
 
 ## Quickstart
 
 ```bash
-pip install awaaz[local]
+pip install alaap[local]
 ```
 
 ```yaml
@@ -59,8 +59,8 @@ runtime:
 ```
 
 ```python
-from awaaz import AgentSpec, CallSession
-from awaaz.runtimes.cascade import CascadeRuntime
+from alaap import AgentSpec, CallSession
+from alaap.runtimes.cascade import CascadeRuntime
 
 agent = AgentSpec.from_yaml("agent.yaml")
 session = CallSession(agent)

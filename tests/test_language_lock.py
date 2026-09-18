@@ -11,8 +11,8 @@ import copy
 
 import pytest
 
-from awaaz.agent import LanguagePolicy
-from awaaz.primitives.language_lock import LanguageLock, prefix_stable
+from alaap.agent import LanguagePolicy
+from alaap.primitives.language_lock import LanguageLock, prefix_stable
 
 
 def make_lock(**kwargs: object) -> LanguageLock:

@@ -1,4 +1,4 @@
-# Awaaz Roadmap
+# Alaap Roadmap
 
 ## v0.1 (current)
 

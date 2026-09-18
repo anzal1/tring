@@ -57,6 +57,6 @@ def _load_builtin() -> None:
     """
     from importlib import import_module
 
-    for mod in ("awaaz.providers.local", "awaaz.providers.cloud"):
+    for mod in ("alaap.providers.local", "alaap.providers.cloud"):
         with contextlib.suppress(ImportError):
             import_module(mod)

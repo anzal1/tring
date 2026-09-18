@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from awaaz.events import CostComponent
+from alaap.events import CostComponent
 
 
 class Rate(BaseModel):

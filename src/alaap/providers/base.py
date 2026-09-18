@@ -15,7 +15,7 @@ import abc
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
-from awaaz.runtimes.base import AudioFrame
+from alaap.runtimes.base import AudioFrame
 
 
 @dataclass

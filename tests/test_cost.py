@@ -1,4 +1,4 @@
-"""Tests for awaaz.cost: rate lookup, metering, and reporting.
+"""Tests for alaap.cost: rate lookup, metering, and reporting.
 
 No network, no vendor SDKs, no GPU — everything here runs against
 ``DEFAULT_RATES`` and a plain ``CallSession`` with an injected clock.
@@ -6,13 +6,13 @@ No network, no vendor SDKs, no GPU — everything here runs against
 
 from __future__ import annotations
 
-from awaaz.agent import AgentSpec
-from awaaz.cost.meter import CostMeter
-from awaaz.cost.rates import DEFAULT_RATES, Rate, RateCard
-from awaaz.cost.report import CostReport, denominator_ladder
-from awaaz.events import CostComponent, CostRecorded, SessionEnded
-from awaaz.providers.base import Usage
-from awaaz.session import CallSession
+from alaap.agent import AgentSpec
+from alaap.cost.meter import CostMeter
+from alaap.cost.rates import DEFAULT_RATES, Rate, RateCard
+from alaap.cost.report import CostReport, denominator_ladder
+from alaap.events import CostComponent, CostRecorded, SessionEnded
+from alaap.providers.base import Usage
+from alaap.session import CallSession
 
 
 def make_session(session_id: str = "sess-1") -> CallSession:

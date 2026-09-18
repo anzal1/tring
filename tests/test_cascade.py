@@ -1,4 +1,4 @@
-"""End-to-end tests for :class:`~awaaz.runtimes.cascade.CascadeRuntime`.
+"""End-to-end tests for :class:`~alaap.runtimes.cascade.CascadeRuntime`.
 
 Everything here runs on fakes. No model weights, no network, no audio device,
 no API key -- which is the point: the cascade runtime's job is *orchestration*,
@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-from awaaz.agent import (
+from alaap.agent import (
     AgentSpec,
     LanguagePolicy,
     Limits,
@@ -27,10 +27,10 @@ from awaaz.agent import (
     RuntimeConfig,
     ToolDef,
 )
-from awaaz.cost.meter import CostMeter
-from awaaz.cost.rates import Rate, RateCard
-from awaaz.events import CostComponent
-from awaaz.providers.base import (
+from alaap.cost.meter import CostMeter
+from alaap.cost.rates import Rate, RateCard
+from alaap.events import CostComponent
+from alaap.providers.base import (
     LLMChunk,
     LLMProvider,
     STTProvider,
@@ -39,10 +39,10 @@ from awaaz.providers.base import (
     TTSProvider,
     Usage,
 )
-from awaaz.providers.registry import register
-from awaaz.runtimes.base import AudioFrame
-from awaaz.runtimes.cascade import SPOKEN_CHARS_PER_SECOND, CascadeRuntime
-from awaaz.session import CallSession
+from alaap.providers.registry import register
+from alaap.runtimes.base import AudioFrame
+from alaap.runtimes.cascade import SPOKEN_CHARS_PER_SECOND, CascadeRuntime
+from alaap.session import CallSession
 
 # ---------------------------------------------------------------------------
 # Fake providers
@@ -540,7 +540,7 @@ async def test_builtin_text_input_stt_drives_the_pipeline_without_ml_deps() -> N
 
     ``text_input`` is a shipped provider, not a test double, so this also
     covers the registry path that ``_load_builtin`` sets up -- the same one a
-    ``pip install awaaz`` user hits when they point a spec at it.
+    ``pip install alaap`` user hits when they point a spec at it.
     """
     LLM_SCRIPTS["console"] = [TWO_TURN_SCRIPT[0]]
     agent = build_agent("console", greeting=None)

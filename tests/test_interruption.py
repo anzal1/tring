@@ -1,4 +1,4 @@
-"""Tests for awaaz.primitives.interruption.PlaybackLedger.
+"""Tests for alaap.primitives.interruption.PlaybackLedger.
 
 Uses a bare CallSession bound to a minimal AgentSpec (no runtime, no
 providers, no network) and reads back session.history to assert on emitted
@@ -8,10 +8,10 @@ text/state bookkeeping over the session event bus.
 
 from __future__ import annotations
 
-from awaaz.agent import AgentSpec
-from awaaz.events import BotSpeechPlayed, BotUtterance, Interruption
-from awaaz.primitives.interruption import PlaybackLedger
-from awaaz.session import CallSession
+from alaap.agent import AgentSpec
+from alaap.events import BotSpeechPlayed, BotUtterance, Interruption
+from alaap.primitives.interruption import PlaybackLedger
+from alaap.session import CallSession
 
 
 def make_session() -> CallSession:

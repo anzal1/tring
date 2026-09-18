@@ -9,9 +9,9 @@ Typical deployment: run a local Ollama for LLM and Kokoro for TTS, expose
 this server on a private network, and connect from a browser or mobile client.
 
 Example:
-    >>> from awaaz import AgentSpec, CallSession
-    >>> from awaaz.runtimes.cascade import CascadeRuntime
-    >>> from awaaz.transports.websocket import serve
+    >>> from alaap import AgentSpec, CallSession
+    >>> from alaap.runtimes.cascade import CascadeRuntime
+    >>> from alaap.transports.websocket import serve
     >>>
     >>> agent = AgentSpec.from_yaml("agent.yaml")
     >>> def factory(session):
@@ -29,11 +29,11 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from awaaz.runtimes.base import AudioFrame
-from awaaz.session import CallSession
+from alaap.runtimes.base import AudioFrame
+from alaap.session import CallSession
 
 if TYPE_CHECKING:
-    from awaaz.runtimes.base import RuntimeAdapter
+    from alaap.runtimes.base import RuntimeAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ async def serve(
     except ImportError as e:
         raise ImportError(
             "websockets library not found. "
-            "Install awaaz[transports] to enable WebSocket support."
+            "Install alaap[transports] to enable WebSocket support."
         ) from e
 
     async def handle_connection(websocket: websockets.WebSocketServerProtocol) -> None:

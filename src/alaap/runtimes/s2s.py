@@ -40,7 +40,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 
-from awaaz.events import (
+from alaap.events import (
     BotUtterance,
     CostComponent,
     CostRecorded,
@@ -49,10 +49,10 @@ from awaaz.events import (
     TranscriptAvailability,
     UserTranscript,
 )
-from awaaz.providers import registry
-from awaaz.providers.base import S2SProvider, Usage
-from awaaz.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
-from awaaz.session import CallSession
+from alaap.providers import registry
+from alaap.providers.base import S2SProvider, Usage
+from alaap.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
+from alaap.session import CallSession
 
 _CAPABILITIES = RuntimeCapabilities(
     live_transcripts=False,

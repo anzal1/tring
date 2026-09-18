@@ -28,7 +28,7 @@ from typing import Any
 
 import httpx
 
-from awaaz.providers.base import (
+from alaap.providers.base import (
     LLMChunk,
     LLMProvider,
     STTProvider,
@@ -37,8 +37,8 @@ from awaaz.providers.base import (
     TTSProvider,
     Usage,
 )
-from awaaz.providers.registry import register
-from awaaz.runtimes.base import AudioFrame
+from alaap.providers.registry import register
+from alaap.runtimes.base import AudioFrame
 
 
 def _read_api_key(env_var: str, provider_label: str) -> str:
@@ -96,7 +96,7 @@ class DeepgramSTT(STTProvider):
         except ImportError as exc:
             raise ImportError(
                 "DeepgramSTT needs the 'websockets' package. Install the "
-                "optional cloud extra: pip install 'awaaz[cloud]'"
+                "optional cloud extra: pip install 'alaap[cloud]'"
             ) from exc
         import asyncio
 

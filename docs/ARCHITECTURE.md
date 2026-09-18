@@ -1,6 +1,6 @@
-# Awaaz Architecture
+# Alaap Architecture
 
-Awaaz (आवाज़, "voice") is an open-source, production-grade voice agent stack.
+Alaap (आलाप, "the opening of a conversation") is an open-source, production-grade voice agent stack.
 One agent definition, any runtime, any provider — or no paid provider at all —
 and you always know what a call costs.
 
@@ -25,7 +25,7 @@ and you always know what a call costs.
 ## Package layout
 
 ```
-src/awaaz/
+src/alaap/
   agent.py          AgentSpec — the single agent contract (pydantic, YAML-loadable)
   events.py         Unified session event model (all runtimes emit these)
   session.py        CallSession — one live conversation, event bus, lifecycle

@@ -24,8 +24,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from awaaz.events import BotSpeechPlayed, BotUtterance, Interruption
-from awaaz.session import CallSession
+from alaap.events import BotSpeechPlayed, BotUtterance, Interruption
+from alaap.session import CallSession
 
 #: Default grace window (characters). A caller who starts speaking this close
 #: to the end of the bot's utterance is treated as taking their turn, not

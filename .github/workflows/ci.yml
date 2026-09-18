@@ -27,7 +27,7 @@ jobs:
         run: ruff check src tests
 
       - name: Type check with mypy
-        run: mypy src/awaaz
+        run: mypy src/alaap
         continue-on-error: true
 
       - name: Run tests with pytest

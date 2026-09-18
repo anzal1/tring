@@ -12,8 +12,8 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Callable
 
-from awaaz.agent import AgentSpec
-from awaaz.events import SessionEvent
+from alaap.agent import AgentSpec
+from alaap.events import SessionEvent
 
 
 class CallSession:

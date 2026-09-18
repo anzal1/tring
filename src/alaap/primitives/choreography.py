@@ -40,9 +40,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from awaaz.agent import ToolDef
-from awaaz.events import ToolCallCompleted, ToolCallStarted
-from awaaz.session import CallSession
+from alaap.agent import ToolDef
+from alaap.events import ToolCallCompleted, ToolCallStarted
+from alaap.session import CallSession
 
 #: JSON-Schema property name for each choreography field. Centralized so the
 #: augmenter, the parser, and error messages can never drift apart.
