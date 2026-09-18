@@ -12,9 +12,9 @@ from typing import Any
 
 import pytest
 
-from trunkline.agent import ToolDef
-from trunkline.events import ToolCallCompleted, ToolCallStarted
-from trunkline.primitives.choreography import (
+from tring.agent import ToolDef
+from tring.events import ToolCallCompleted, ToolCallStarted
+from tring.primitives.choreography import (
     ChoreographedCall,
     ChoreographyError,
     ToolOutcome,
@@ -22,7 +22,7 @@ from trunkline.primitives.choreography import (
     execute,
     parse_choreographed_call,
 )
-from trunkline.session import CallSession
+from tring.session import CallSession
 
 
 class FakeClock:
@@ -39,7 +39,7 @@ class FakeClock:
 
 
 def make_session(clock: FakeClock | None = None) -> CallSession:
-    from trunkline.agent import AgentSpec
+    from tring.agent import AgentSpec
 
     agent = AgentSpec(name="test-agent", persona="You are a test agent.")
     return CallSession(agent=agent, session_id="sess-1", clock=clock or FakeClock())

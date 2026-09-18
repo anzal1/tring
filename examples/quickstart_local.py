@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Real-audio WebSocket server for local voice conversations.
 
-An example showing the full trunkline stack: faster-whisper for speech-to-text,
+An example showing the full tring stack: faster-whisper for speech-to-text,
 Ollama for the LLM, and Kokoro for text-to-speech synthesis. All running
 locally on your machine, with zero cloud dependencies and zero per-minute cost.
 
@@ -10,7 +10,7 @@ microphone. The audio is transcribed, processed by the LLM, and synthesized
 back as speech in real time.
 
 Setup:
-    1. Install trunkline with full local support:
+    1. Install tring with full local support:
        pip install -e ".[local,transports]"
     2. Download and start Ollama (if not already running):
        ollama serve &
@@ -34,11 +34,11 @@ import logging
 import sys
 from pathlib import Path
 
-# Add the source directory to the path so we can import trunkline.
+# Add the source directory to the path so we can import tring.
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from trunkline import AgentSpec, CallSession
-from trunkline.cost.rates import DEFAULT_RATES
+from tring import AgentSpec, CallSession
+from tring.cost.rates import DEFAULT_RATES
 
 
 async def main() -> None:
@@ -61,24 +61,24 @@ async def main() -> None:
 
     # Import the cascade runtime and cost meter.
     try:
-        from trunkline.runtimes.cascade import CascadeRuntime
+        from tring.runtimes.cascade import CascadeRuntime
     except ImportError as e:
         logger.error(f"CascadeRuntime import failed: {e}")
         sys.exit(1)
 
     try:
-        from trunkline.cost.meter import CostMeter
+        from tring.cost.meter import CostMeter
     except ImportError:
         logger.warning("CostMeter not available; cost tracking disabled.")
         CostMeter = None
 
     # Import the WebSocket server.
     try:
-        from trunkline.transports.websocket import serve
+        from tring.transports.websocket import serve
     except ImportError as e:
         logger.error(
             f"WebSocket transport not available: {e}. "
-            f"Install trunkline[transports] to enable."
+            f"Install tring[transports] to enable."
         )
         sys.exit(1)
 

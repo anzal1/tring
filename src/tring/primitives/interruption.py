@@ -24,8 +24,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from trunkline.events import BotSpeechPlayed, BotUtterance, Interruption
-from trunkline.session import CallSession
+from tring.events import BotSpeechPlayed, BotUtterance, Interruption
+from tring.session import CallSession
 
 #: Default grace window (characters). A caller who starts speaking this close
 #: to the end of the bot's utterance is treated as taking their turn, not

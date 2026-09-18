@@ -40,9 +40,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from trunkline.agent import ToolDef
-from trunkline.events import ToolCallCompleted, ToolCallStarted
-from trunkline.session import CallSession
+from tring.agent import ToolDef
+from tring.events import ToolCallCompleted, ToolCallStarted
+from tring.session import CallSession
 
 #: JSON-Schema property name for each choreography field. Centralized so the
 #: augmenter, the parser, and error messages can never drift apart.

@@ -1,6 +1,6 @@
-# Trunkline Architecture
+# Tring Architecture
 
-Trunkline is an open-source, production-grade voice agent stack: the trunk line your voice agents run on.
+Tring is an open-source, production-grade voice agent stack, named for the sound of an arriving call.
 One agent definition, any runtime, any provider — or no paid provider at all —
 and you always know what a call costs.
 
@@ -25,7 +25,7 @@ and you always know what a call costs.
 ## Package layout
 
 ```
-src/trunkline/
+src/tring/
   agent.py          AgentSpec — the single agent contract (pydantic, YAML-loadable)
   events.py         Unified session event model (all runtimes emit these)
   session.py        CallSession — one live conversation, event bus, lifecycle

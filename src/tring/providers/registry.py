@@ -57,6 +57,6 @@ def _load_builtin() -> None:
     """
     from importlib import import_module
 
-    for mod in ("trunkline.providers.local", "trunkline.providers.cloud"):
+    for mod in ("tring.providers.local", "tring.providers.cloud"):
         with contextlib.suppress(ImportError):
             import_module(mod)

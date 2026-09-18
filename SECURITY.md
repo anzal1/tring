@@ -4,7 +4,7 @@
 
 Please report security vulnerabilities privately via GitHub's security advisory process:
 
-1. Go to the [Trunkline repository](https://github.com/anzalabidi/trunkline).
+1. Go to the [Tring repository](https://github.com/anzalabidi/tring).
 2. Click the "Security" tab.
 3. Select "Report a vulnerability" and fill in the details.
 

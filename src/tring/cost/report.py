@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from trunkline.events import CostRecorded, SessionEnded, SessionEvent
+from tring.events import CostRecorded, SessionEnded, SessionEvent
 
 
 class CostReport(BaseModel):

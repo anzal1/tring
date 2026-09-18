@@ -40,7 +40,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 
-from trunkline.events import (
+from tring.events import (
     BotUtterance,
     CostComponent,
     CostRecorded,
@@ -49,10 +49,10 @@ from trunkline.events import (
     TranscriptAvailability,
     UserTranscript,
 )
-from trunkline.providers import registry
-from trunkline.providers.base import S2SProvider, Usage
-from trunkline.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
-from trunkline.session import CallSession
+from tring.providers import registry
+from tring.providers.base import S2SProvider, Usage
+from tring.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
+from tring.session import CallSession
 
 _CAPABILITIES = RuntimeCapabilities(
     live_transcripts=False,

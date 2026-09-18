@@ -9,9 +9,9 @@ Typical deployment: run a local Ollama for LLM and Kokoro for TTS, expose
 this server on a private network, and connect from a browser or mobile client.
 
 Example:
-    >>> from trunkline import AgentSpec, CallSession
-    >>> from trunkline.runtimes.cascade import CascadeRuntime
-    >>> from trunkline.transports.websocket import serve
+    >>> from tring import AgentSpec, CallSession
+    >>> from tring.runtimes.cascade import CascadeRuntime
+    >>> from tring.transports.websocket import serve
     >>>
     >>> agent = AgentSpec.from_yaml("agent.yaml")
     >>> def factory(session):
@@ -29,11 +29,11 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from trunkline.runtimes.base import AudioFrame
-from trunkline.session import CallSession
+from tring.runtimes.base import AudioFrame
+from tring.session import CallSession
 
 if TYPE_CHECKING:
-    from trunkline.runtimes.base import RuntimeAdapter
+    from tring.runtimes.base import RuntimeAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ async def serve(
     except ImportError as e:
         raise ImportError(
             "websockets library not found. "
-            "Install trunkline[transports] to enable WebSocket support."
+            "Install tring[transports] to enable WebSocket support."
         ) from e
 
     async def handle_connection(websocket: websockets.WebSocketServerProtocol) -> None:

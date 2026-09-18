@@ -28,7 +28,7 @@ from typing import Any
 
 import httpx
 
-from trunkline.providers.base import (
+from tring.providers.base import (
     LLMChunk,
     LLMProvider,
     STTProvider,
@@ -37,8 +37,8 @@ from trunkline.providers.base import (
     TTSProvider,
     Usage,
 )
-from trunkline.providers.registry import register
-from trunkline.runtimes.base import AudioFrame
+from tring.providers.registry import register
+from tring.runtimes.base import AudioFrame
 
 
 def _read_api_key(env_var: str, provider_label: str) -> str:
@@ -96,7 +96,7 @@ class DeepgramSTT(STTProvider):
         except ImportError as exc:
             raise ImportError(
                 "DeepgramSTT needs the 'websockets' package. Install the "
-                "optional cloud extra: pip install 'trunkline[cloud]'"
+                "optional cloud extra: pip install 'tring[cloud]'"
             ) from exc
         import asyncio
 

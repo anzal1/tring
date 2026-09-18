@@ -15,7 +15,7 @@ import abc
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
-from trunkline.runtimes.base import AudioFrame
+from tring.runtimes.base import AudioFrame
 
 
 @dataclass

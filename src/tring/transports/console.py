@@ -25,7 +25,7 @@ import contextlib
 import sys
 from typing import TYPE_CHECKING
 
-from trunkline.events import (
+from tring.events import (
     BotSpeechPlayed,
     BotUtterance,
     CostRecorded,
@@ -35,10 +35,10 @@ from trunkline.events import (
     ToolCallStarted,
     UserTranscript,
 )
-from trunkline.runtimes.base import AudioFrame
+from tring.runtimes.base import AudioFrame
 
 if TYPE_CHECKING:
-    from trunkline.runtimes.base import RuntimeAdapter
+    from tring.runtimes.base import RuntimeAdapter
 
 
 # ANSI color codes for terminal output (work in light and dark themes)

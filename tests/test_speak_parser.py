@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from trunkline.primitives.speak_parser import (
+from tring.primitives.speak_parser import (
     FallbackText,
     ParserEvent,
     SpeakDelta,

@@ -12,8 +12,8 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 
-from trunkline.agent import AgentSpec, ProviderSelection, RuntimeConfig, RuntimeMode, ToolDef
-from trunkline.events import (
+from tring.agent import AgentSpec, ProviderSelection, RuntimeConfig, RuntimeMode, ToolDef
+from tring.events import (
     BotUtterance,
     CostRecorded,
     SessionEnded,
@@ -23,11 +23,11 @@ from trunkline.events import (
     TranscriptAvailability,
     UserTranscript,
 )
-from trunkline.providers.base import S2SProvider, TTSChunk, Usage
-from trunkline.runtimes.base import AudioFrame
-from trunkline.runtimes.hybrid import HybridRuntime
-from trunkline.runtimes.s2s import S2SRuntime
-from trunkline.session import CallSession
+from tring.providers.base import S2SProvider, TTSChunk, Usage
+from tring.runtimes.base import AudioFrame
+from tring.runtimes.hybrid import HybridRuntime
+from tring.runtimes.s2s import S2SRuntime
+from tring.session import CallSession
 
 
 def _agent(mode: RuntimeMode = RuntimeMode.S2S) -> AgentSpec:
@@ -147,7 +147,7 @@ async def test_s2s_runtime_stop_is_idempotent() -> None:
 async def test_s2s_runtime_resolves_provider_from_routing() -> None:
     """When no provider is injected, S2SRuntime resolves one from the
     registry using the spec's routing -- the real (non-test) path."""
-    from trunkline.providers import registry
+    from tring.providers import registry
 
     registry.register("s2s", "fake-registered")(lambda **_: FakeS2SProvider())
     session = CallSession(
@@ -389,8 +389,8 @@ async def test_hybrid_tool_call_hook_non_choreographed_tool_skips_the_three_fiel
 
 
 def test_cloud_module_registers_expected_provider_names() -> None:
-    import trunkline.providers.cloud  # noqa: F401 -- import is the point of the test
-    from trunkline.providers import registry
+    import tring.providers.cloud  # noqa: F401 -- import is the point of the test
+    from tring.providers import registry
 
     available = registry.available()
     assert ("stt", "deepgram") in available
@@ -402,7 +402,7 @@ def test_cloud_module_registers_expected_provider_names() -> None:
 async def test_openai_compatible_llm_builds_request_and_parses_usage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from trunkline.providers.cloud import OpenAICompatibleLLM
+    from tring.providers.cloud import OpenAICompatibleLLM
 
     monkeypatch.setenv("MY_LLM_KEY", "sk-test-123")
 
@@ -453,7 +453,7 @@ async def test_openai_compatible_llm_builds_request_and_parses_usage(
 
 @pytest.mark.asyncio
 async def test_openai_compatible_llm_without_api_key_env_omits_auth_header() -> None:
-    from trunkline.providers.cloud import OpenAICompatibleLLM
+    from tring.providers.cloud import OpenAICompatibleLLM
 
     captured: dict = {}
 
@@ -475,7 +475,7 @@ async def test_openai_compatible_llm_without_api_key_env_omits_auth_header() -> 
 def test_openai_compatible_llm_missing_env_var_raises_clear_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from trunkline.providers.cloud import OpenAICompatibleLLM
+    from tring.providers.cloud import OpenAICompatibleLLM
 
     monkeypatch.delenv("SOME_MISSING_KEY", raising=False)
     llm = OpenAICompatibleLLM(

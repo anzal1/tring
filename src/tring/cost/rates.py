@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from trunkline.events import CostComponent
+from tring.events import CostComponent
 
 
 class Rate(BaseModel):

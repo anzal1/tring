@@ -12,8 +12,8 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Callable
 
-from trunkline.agent import AgentSpec
-from trunkline.events import SessionEvent
+from tring.agent import AgentSpec
+from tring.events import SessionEvent
 
 
 class CallSession:

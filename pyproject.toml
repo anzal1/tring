@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "trunkline"
+name = "tring"
 version = "0.1.0"
 description = "Open-source voice agent stack: one agent contract, any runtime (cascade / speech-to-speech / hybrid), local-first, cost-transparent."
 readme = "README.md"
@@ -41,10 +41,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/anzalabidi/trunkline"
+Homepage = "https://github.com/anzalabidi/tring"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/trunkline"]
+packages = ["src/tring"]
 
 [tool.ruff]
 line-length = 96
@@ -58,8 +58,8 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 # enum.StrEnum changes str(member) formatting behavior, not just style, so
 # it is intentionally not applied to those two files.
 [tool.ruff.lint.per-file-ignores]
-"src/trunkline/agent.py" = ["UP042"]
-"src/trunkline/events.py" = ["UP042"]
+"src/tring/agent.py" = ["UP042"]
+"src/tring/events.py" = ["UP042"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -72,7 +72,7 @@ ignore_missing_imports = true
 # every dependent module's overrides, so the narrower [type-arg] check is
 # relaxed only for these two files rather than tightened at the source.
 [[tool.mypy.overrides]]
-module = ["trunkline.events", "trunkline.providers.base"]
+module = ["tring.events", "tring.providers.base"]
 disallow_any_generics = false
 
 [tool.pytest.ini_options]

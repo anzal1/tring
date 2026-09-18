@@ -1,4 +1,4 @@
-"""End-to-end tests for :class:`~trunkline.runtimes.cascade.CascadeRuntime`.
+"""End-to-end tests for :class:`~tring.runtimes.cascade.CascadeRuntime`.
 
 Everything here runs on fakes. No model weights, no network, no audio device,
 no API key -- which is the point: the cascade runtime's job is *orchestration*,
@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-from trunkline.agent import (
+from tring.agent import (
     AgentSpec,
     LanguagePolicy,
     Limits,
@@ -27,10 +27,10 @@ from trunkline.agent import (
     RuntimeConfig,
     ToolDef,
 )
-from trunkline.cost.meter import CostMeter
-from trunkline.cost.rates import Rate, RateCard
-from trunkline.events import CostComponent
-from trunkline.providers.base import (
+from tring.cost.meter import CostMeter
+from tring.cost.rates import Rate, RateCard
+from tring.events import CostComponent
+from tring.providers.base import (
     LLMChunk,
     LLMProvider,
     STTProvider,
@@ -39,10 +39,10 @@ from trunkline.providers.base import (
     TTSProvider,
     Usage,
 )
-from trunkline.providers.registry import register
-from trunkline.runtimes.base import AudioFrame
-from trunkline.runtimes.cascade import SPOKEN_CHARS_PER_SECOND, CascadeRuntime
-from trunkline.session import CallSession
+from tring.providers.registry import register
+from tring.runtimes.base import AudioFrame
+from tring.runtimes.cascade import SPOKEN_CHARS_PER_SECOND, CascadeRuntime
+from tring.session import CallSession
 
 # ---------------------------------------------------------------------------
 # Fake providers
@@ -540,7 +540,7 @@ async def test_builtin_text_input_stt_drives_the_pipeline_without_ml_deps() -> N
 
     ``text_input`` is a shipped provider, not a test double, so this also
     covers the registry path that ``_load_builtin`` sets up -- the same one a
-    ``pip install trunkline`` user hits when they point a spec at it.
+    ``pip install tring`` user hits when they point a spec at it.
     """
     LLM_SCRIPTS["console"] = [TWO_TURN_SCRIPT[0]]
     agent = build_agent("console", greeting=None)

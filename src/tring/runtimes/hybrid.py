@@ -62,16 +62,16 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from trunkline.events import ToolCallCompleted, ToolCallStarted
-from trunkline.primitives.choreography import (
+from tring.events import ToolCallCompleted, ToolCallStarted
+from tring.primitives.choreography import (
     ChoreographyError,
     ToolHandler,
     execute,
     parse_choreographed_call,
 )
-from trunkline.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
-from trunkline.runtimes.s2s import S2SRuntime
-from trunkline.session import CallSession
+from tring.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
+from tring.runtimes.s2s import S2SRuntime
+from tring.session import CallSession
 
 _CAPABILITIES = RuntimeCapabilities(
     live_transcripts=False,

@@ -18,10 +18,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from trunkline.cost.rates import RateCard
-from trunkline.events import CostComponent, CostRecorded
-from trunkline.providers.base import Usage
-from trunkline.session import CallSession
+from tring.cost.rates import RateCard
+from tring.events import CostComponent, CostRecorded
+from tring.providers.base import Usage
+from tring.session import CallSession
 
 
 class CostMeter:

@@ -11,8 +11,8 @@ import copy
 
 import pytest
 
-from trunkline.agent import LanguagePolicy
-from trunkline.primitives.language_lock import LanguageLock, prefix_stable
+from tring.agent import LanguagePolicy
+from tring.primitives.language_lock import LanguageLock, prefix_stable
 
 
 def make_lock(**kwargs: object) -> LanguageLock:

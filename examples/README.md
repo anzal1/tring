@@ -1,6 +1,6 @@
-# Trunkline Examples
+# Tring Examples
 
-Two quick-start examples showing how to run an trunkline voice agent locally,
+Two quick-start examples showing how to run an tring voice agent locally,
 with zero cloud dependencies.
 
 ## Example 1: Text Console Chat
@@ -11,12 +11,12 @@ it through an LLM, and print the response.
 ### Requirements
 
 - Ollama (for the LLM): https://ollama.ai
-- Python 3.11+ with trunkline installed
+- Python 3.11+ with tring installed
 
 ### Setup
 
 ```bash
-# Install trunkline with local LLM support
+# Install tring with local LLM support
 pip install -e ".[local]"
 
 # Start Ollama in a separate terminal
@@ -73,12 +73,12 @@ text-to-speech (Kokoro). All local, all real-time.
 
 - Ollama: https://ollama.ai
 - PyAudio or PortAudio (for microphone access)
-- Python 3.11+ with trunkline installed
+- Python 3.11+ with tring installed
 
 ### Setup
 
 ```bash
-# Install trunkline with full local + transport support
+# Install tring with full local + transport support
 pip install -e ".[local,transports]"
 
 # Start Ollama
