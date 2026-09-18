@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Text-only console chat with a local LLM agent.
 
-A simple example showing how to run an tring agent entirely locally via the
+A simple example showing how to run a Tring agent entirely locally via the
 console transport. This uses:
 - Ollama for the LLM (no API keys, runs on your machine)
 - Kokoro for text-to-speech synthesis (local)
