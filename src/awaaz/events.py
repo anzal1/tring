@@ -12,7 +12,7 @@ explicit ``availability`` marker instead of letting consumers assume timing.
 from __future__ import annotations
 
 import enum
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -139,17 +139,15 @@ class SessionError(BaseEvent):
 
 
 SessionEvent = Annotated[
-    Union[
-        SessionStarted,
-        SessionEnded,
-        UserTranscript,
-        BotUtterance,
-        BotSpeechPlayed,
-        Interruption,
-        ToolCallStarted,
-        ToolCallCompleted,
-        CostRecorded,
-        SessionError,
-    ],
+    SessionStarted
+    | SessionEnded
+    | UserTranscript
+    | BotUtterance
+    | BotSpeechPlayed
+    | Interruption
+    | ToolCallStarted
+    | ToolCallCompleted
+    | CostRecorded
+    | SessionError,
     Field(discriminator="type"),
 ]

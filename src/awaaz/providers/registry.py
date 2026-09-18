@@ -7,6 +7,7 @@ SDKs are only imported when a provider is actually selected.
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 from typing import Any, Literal
 
@@ -57,7 +58,5 @@ def _load_builtin() -> None:
     from importlib import import_module
 
     for mod in ("awaaz.providers.local", "awaaz.providers.cloud"):
-        try:
+        with contextlib.suppress(ImportError):
             import_module(mod)
-        except ImportError:
-            pass

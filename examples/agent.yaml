@@ -1,0 +1,58 @@
+name: customer-support
+version: "0.1.0"
+
+persona: |
+  You are a friendly and helpful customer support agent for an e-commerce
+  platform. Your job is to answer questions about orders, help with returns
+  and refunds, and troubleshoot product issues. You are patient, professional,
+  and always eager to help.
+
+  When a customer asks about their order status, use the check_order_status
+  tool to look up their order. Always be honest if you don't have information
+  and offer to escalate to a human agent.
+
+greeting: |
+  Hello! Welcome to customer support. How can I help you today?
+
+language:
+  primary: en
+  allowed: []
+  lock: true
+
+runtime:
+  mode: cascade
+  routing:
+    default:
+      stt: text_input  # Text passthrough for console examples
+      llm: ollama
+      tts: kokoro
+      options: {}
+
+tools:
+  - name: check_order_status
+    description: |
+      Look up the status of a customer's order by order ID. Returns the
+      current status (processing, shipped, delivered, etc.), estimated
+      delivery date, and any available tracking information.
+    parameters:
+      type: object
+      properties:
+        order_id:
+          type: string
+          description: The customer's order ID (e.g., "ORD-12345")
+      required:
+        - order_id
+    handler: null  # Will be bound at session start with a fake implementation
+    timeout_seconds: 5.0
+    choreographed: true
+
+limits:
+  max_duration_seconds: 600.0
+  max_cost: null
+  cost_currency: USD
+  max_tool_calls: 32
+
+metadata:
+  team: support
+  environment: local
+  version_notes: "Demo agent for local testing"
