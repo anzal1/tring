@@ -19,7 +19,9 @@ Same tools, same analytics, same cost attribution on every runtime. Switching a 
 pip install tring
 ```
 
-**[▶ Watch the 2-minute demo](https://github.com/anzal1/tring/releases/download/v0.4.0/tring-demo.mp4)** — a live agent booking an appointment through a choreographed tool call, the flow builder compiling a canvas into an agent, and session replay, all in Tring Studio.
+[![Tring Studio demo: a live agent booking an appointment through a choreographed tool call, the flow builder, and session replay](docs/assets/tring-demo.gif)](https://github.com/anzal1/tring/releases/download/v0.4.0/tring-demo.mp4)
+
+<p align="center"><em>Live inference, real costs — <a href="https://github.com/anzal1/tring/releases/download/v0.4.0/tring-demo.mp4">watch the full demo with narration</a></em></p>
 
 Built from lessons learned running voice agents across hundreds of thousands of production telephony calls, in multiple languages, where callers code-switch mid-sentence and two seconds of silence means a hangup.
 
