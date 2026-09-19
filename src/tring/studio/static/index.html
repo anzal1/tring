@@ -173,6 +173,7 @@ legend {
   padding: 16px; resize: none; white-space: pre; min-height: 0;
 }
 #yaml-pane { display: none; flex-direction: column; flex: 1; min-height: 0; }
+#yaml-pane #yaml-editor { min-height: 320px; }
 #save-msg { font-size: 12px; min-height: 17px; color: var(--ink-3); }
 #save-msg.ok { color: var(--good); }
 #save-msg.err { color: var(--critical); white-space: pre-wrap; font-family: var(--mono); font-size: 11px; }
@@ -584,11 +585,17 @@ $("#save").onclick = async () => {
     msg.className = "err"; msg.textContent = "tool parameters: " + e.message;
     return;
   }
-  const res = await (await fetch("/api/agent", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ yaml: body }),
-  })).json();
+  let res;
+  try {
+    res = await (await fetch("/api/agent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ yaml: body }),
+    })).json();
+  } catch {
+    msg.className = "err"; msg.textContent = "network error: could not reach the studio server";
+    return;
+  }
   if (res.ok) {
     msg.className = "ok"; msg.textContent = "saved";
     $("#yaml-editor").value = body;
