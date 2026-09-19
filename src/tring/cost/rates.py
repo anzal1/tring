@@ -362,5 +362,77 @@ DEFAULT_RATES = RateCard(
             currency="USD",
             as_of="2026-09",
         ),
+        # ------------------------------------------------------------------
+        # v0.4 CORE swarm additions. Same by-value-copy rule as the v0.2
+        # block above: see providers/cloud/s2s_gemini.py, outbound/dialer.py,
+        # and knowledge/{chroma,keyword_local}.py for the vendor-pricing
+        # citation each row was verified against, as_of "2026-09".
+        # ------------------------------------------------------------------
+        # -- S2S (Gemini Live) --
+        Rate(
+            component=CostComponent.S2S,
+            provider="gemini_live",
+            model="gemini-3.8-live",
+            unit_name="tokens_in",
+            price_per_unit=0.000003,  # $3.00 / 1M audio input tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.S2S,
+            provider="gemini_live",
+            model="gemini-3.8-live",
+            unit_name="tokens_out",
+            price_per_unit=0.000012,  # $12.00 / 1M audio output tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.S2S,
+            provider="gemini_live",
+            model="gemini-2.5-flash-native-audio-preview-12-2025",
+            unit_name="tokens_in",
+            price_per_unit=0.000003,  # $3.00 / 1M audio (or video) input tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.S2S,
+            provider="gemini_live",
+            model="gemini-2.5-flash-native-audio-preview-12-2025",
+            unit_name="tokens_out",
+            price_per_unit=0.000012,  # $12.00 / 1M audio output tokens
+            currency="USD",
+            as_of="2026-09",
+        ),
+        # -- Telephony (outbound dialing) --
+        Rate(
+            component=CostComponent.TELEPHONY,
+            provider="twilio",
+            model=None,
+            unit_name="call_seconds",
+            price_per_unit=0.0140 / 60,  # $0.0140/min outbound, US, PAYG list price
+            currency="USD",
+            as_of="2026-09",
+        ),
+        # -- Knowledge (local, zero marginal cost by construction) --
+        Rate(
+            component=CostComponent.OTHER,
+            provider="chroma_local",
+            model=None,
+            unit_name="knowledge_queries",
+            price_per_unit=0.0,
+            currency="USD",
+            as_of="2026-09",
+        ),
+        Rate(
+            component=CostComponent.OTHER,
+            provider="keyword_local",
+            model=None,
+            unit_name="knowledge_queries",
+            price_per_unit=0.0,
+            currency="USD",
+            as_of="2026-09",
+        ),
     ],
 )

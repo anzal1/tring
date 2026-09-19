@@ -382,6 +382,11 @@ src/tring/
   primitives/         speak_parser, choreography, interruption, language_lock
   cost/               rate cards, meter, reports, denominator ladder
   transports/         console dev loop, websocket audio server
+  eval/               scripted YAML conversation tests against a real runtime
+  outbound/           campaign dialing, answering-machine detection, funnel reports
+  observability/      OpenTelemetry export, per-turn latency waterfalls, cache-regression alarms
+  telephony/          FreeSWITCH dialplan generation, live-call transfer to a human
+  knowledge/          retrieval-as-a-tool: keyword, Chroma, and Qdrant providers
 tests/                131 tests, all offline: fakes, no keys, no GPU
 examples/             console chat, local audio quickstart
 ```

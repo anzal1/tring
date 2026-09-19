@@ -87,6 +87,7 @@ End-to-end audio models that listen and respond directly. Input: 16 kHz mono PCM
 |---|---|---|---|---|---|
 | `openai_realtime` | OpenAI | `OPENAI_API_KEY` | `model` (default: "gpt-realtime-2.1"), `voice` (default: "marin"), `turn_detection` (default: "semantic_vad") | Real-time, tools, server-side turn detection | Yes |
 | `ultravox` | Fixie.ai (Ultravox) | `ULTRAVOX_API_KEY` | `model` (default: "ultravox-v0.7"), `voice` (default: "Mark") | Low-latency, tools, transcript events | Yes |
+| `gemini_live` | Google | `GEMINI_API_KEY` | `model` (default: "gemini-3.8-live"), `system_instruction`, `tools`, `input_transcription`/`output_transcription` (default: true) | Real-time, tool calls, input/output transcripts, exact end-of-stream token usage | v0.4 |
 
 ---
 

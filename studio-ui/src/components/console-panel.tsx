@@ -1,20 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { TranscriptPanel } from "@/components/transcript-panel";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import type { Session } from "@/hooks/use-session";
-import type { TranscriptItem } from "@/lib/protocol";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Mic, Session } from "@/hooks/use-session";
 
 export function ConsolePanel({ session }: { session: Session }) {
-  const { conn, items, speaking, start, reset, send } = session;
+  const { conn, items, level, mic, start, reset, send } = session;
   const [text, setText] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
   const live = conn === "live";
-
-  useEffect(() => {
-    const n = scrollRef.current;
-    if (n) n.scrollTop = n.scrollHeight;
-  }, [items]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,106 +18,137 @@ export function ConsolePanel({ session }: { session: Session }) {
   }
 
   return (
-    <Card className="flex min-h-0 flex-col gap-0 overflow-hidden py-0">
-      <CardHeader className="flex-row items-center border-b py-3! [.border-b]:pb-3">
-        <CardTitle className="text-[10.5px] font-medium tracking-[0.08em] uppercase text-muted-foreground">
-          Test console
-        </CardTitle>
-        <div className="ml-auto flex gap-2">
+    <TranscriptPanel
+      title="Test console"
+      items={items}
+      level={level}
+      actions={
+        <>
           <Button size="sm" variant="secondary" className="press" onClick={start}>
             Start
           </Button>
           <Button size="sm" variant="ghost" className="press" disabled={!live} onClick={reset}>
             Reset
           </Button>
+        </>
+      }
+      empty={
+        <div className="m-auto flex max-w-[300px] flex-col items-center gap-2 text-center text-xs text-muted-foreground">
+          <span className="text-2xl opacity-35">🔔</span>
+          <span>
+            Save an agent, then <strong className="text-foreground">Start</strong> a session.
+            Every event streams into the panels on the right.
+          </span>
         </div>
-      </CardHeader>
-
-      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-4">
-        {items.length === 0 ? (
-          <div className="m-auto flex max-w-[300px] flex-col items-center gap-2 text-center text-xs text-muted-foreground">
-            <span className="text-2xl opacity-35">🔔</span>
-            <span>
-              Save an agent, then <strong className="text-foreground">Start</strong> a session.
-              Every event streams into the panels on the right.
-            </span>
-          </div>
-        ) : (
-          items.map((item, i) => <Item key={i} item={item} />)
-        )}
-      </div>
-
-      {/* speech-activity hairline: neutral, motion is not the only cue (dot in header) */}
-      <div aria-hidden className="h-0.5 overflow-hidden">
-        <div
-          className="h-full origin-left bg-muted-foreground transition-transform duration-150"
-          style={{ transform: `scaleX(${speaking ? 1 : 0})` }}
-        />
-      </div>
-
-      <form onSubmit={submit} className="flex gap-2 border-t p-3">
-        <Input
-          placeholder="Say something…"
-          aria-label="Message"
-          disabled={!live}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-        <Button type="submit" className="press" disabled={!live}>
-          Send
-        </Button>
-      </form>
-    </Card>
+      }
+      footer={
+        <>
+          <MicBar mic={mic} live={live} />
+          <form onSubmit={submit} className="flex gap-2 border-t p-3">
+            <Input
+              placeholder="Say something…"
+              aria-label="Message"
+              disabled={!live}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <Button type="submit" className="press" disabled={!live}>
+              Send
+            </Button>
+          </form>
+        </>
+      }
+    />
   );
 }
 
-function Item({ item }: { item: TranscriptItem }) {
-  switch (item.kind) {
-    case "sys":
-      return (
-        <div className={`enter self-center text-[11.5px] ${item.bad ? "text-destructive" : "text-muted-foreground"}`}>
-          {item.text}
-        </div>
-      );
-    case "user":
-      return (
-        <div className="enter max-w-[82%] self-end rounded-xl bg-accent px-3 py-1.5 text-[13px] whitespace-pre-wrap">
-          {item.text}
-        </div>
-      );
-    case "bot":
-      return (
-        <div className="enter max-w-[82%] self-start rounded-xl bg-secondary px-3 py-1.5 text-[13px] whitespace-pre-wrap shadow-[0_0_0_1px_var(--border)]">
-          {item.text}
-        </div>
-      );
-    case "interrupt":
-      return (
-        <div className="enter self-center rounded-full px-3 py-0.5 text-[11px] text-muted-foreground shadow-[0_0_0_1px_var(--border)]">
-          caller interrupted, unheard text annotated
-        </div>
-      );
-    case "tool":
-      return (
-        <div className="enter flex max-w-[82%] flex-col gap-0.5 self-start rounded-[14px] bg-secondary px-3 py-2 text-xs shadow-[0_0_0_1px_var(--border)]">
-          <span className="font-mono text-[11.5px] text-muted-foreground">
-            <span
-              className="mr-2 inline-block size-1.5 rounded-full align-[1px]"
-              style={{ background: item.done && !item.done.ok ? "var(--destructive)" : "var(--chart-2)" }}
-            />
-            {item.name}
-          </span>
-          {item.waiting && <span className="italic text-brand">“{item.waiting}”</span>}
-          {item.done &&
-            (item.done.ok ? (
-              <span className="text-muted-foreground">
-                done in {item.done.latency?.toFixed(2) ?? "?"}s
-                {item.done.summary ? `, ${item.done.summary}` : ""}
-              </span>
-            ) : (
-              <span className="text-destructive">{item.done.summary ?? "failed"}</span>
-            ))}
-        </div>
-      );
+/** Push to talk, and an honest sentence about why it is or is not available.
+ *
+ * The row renders even when the microphone cannot work: a control that
+ * disappears teaches nothing, and every reason this degrades (no secure
+ * context, no AudioWorklet, a denied permission, an agent whose STT slot
+ * would not bind) is something the developer can act on once they can read
+ * it.
+ */
+function MicBar({ mic, live }: { mic: Mic; live: boolean }) {
+  const blocked = mic.state === "unsupported" || mic.state === "denied";
+  const disabled = blocked || !live;
+  const armed = mic.state === "armed";
+
+  const status = blocked
+    ? (mic.reason ?? "microphone unavailable")
+    : !live
+      ? "start a session to speak to the agent"
+      : mic.state === "requesting"
+        ? "waiting for microphone permission…"
+        : mic.state === "refused"
+          ? (mic.reason ?? "the server stayed on typed turns")
+          : armed
+            ? `16 kHz mono uplink${mic.stt ? ` → ${mic.stt}` : ""}`
+            : "arming restarts the session, because the STT slot is bound at start";
+
+  /** Space means "click me" to a button and "scroll" to a document. Both
+   *  defaults are wrong for a key being *held*, so both are cancelled and the
+   *  hold is driven from keydown/keyup directly. */
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== " " && e.key !== "Spacebar") return;
+    e.preventDefault();
+    if (!e.repeat) mic.press();
   }
+
+  function onKeyUp(e: React.KeyboardEvent) {
+    if (e.key !== " " && e.key !== "Spacebar") return;
+    e.preventDefault();
+    mic.release();
+  }
+
+  return (
+    <div className="flex items-center gap-2 border-t px-3 py-2">
+      <Tooltip>
+        <TooltipTrigger render={<span className="inline-flex" />}>
+          <Button
+            size="sm"
+            variant={mic.holding ? "secondary" : "ghost"}
+            className="press"
+            disabled={disabled}
+            aria-pressed={mic.holding}
+            onPointerDown={(e) => {
+              // preventDefault stops the press from selecting text or
+              // starting a drag, and takes the focus move with it, so focus
+              // is put back by hand: holding space is only offered to a
+              // focused button, and clicking one is how people focus it.
+              e.preventDefault();
+              e.currentTarget.focus();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              mic.press();
+            }}
+            onPointerUp={() => mic.release()}
+            onPointerCancel={() => mic.release()}
+            onKeyDown={onKeyDown}
+            onKeyUp={onKeyUp}
+            onBlur={() => mic.release()}
+          >
+            <span
+              className="mr-1.5 inline-block size-[7px] rounded-full transition-colors duration-150"
+              style={{ background: mic.holding ? "var(--good)" : "var(--muted-foreground)" }}
+            />
+            {mic.holding ? "Listening…" : "Hold to talk"}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[280px] text-[11px]">
+          {blocked
+            ? (mic.reason ?? "microphone unavailable")
+            : "Hold the button, or focus it and hold space. Your microphone is downsampled to 16 kHz mono and streamed only while you hold."}
+        </TooltipContent>
+      </Tooltip>
+
+      <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{status}</span>
+
+      {armed && (
+        <Button size="sm" variant="ghost" className="press text-muted-foreground" onClick={mic.disarm}>
+          Release mic
+        </Button>
+      )}
+    </div>
+  );
 }

@@ -3,6 +3,7 @@
 CLI per ``docs/STUDIO_PROTOCOL.md``::
 
     python -m tring.studio [--agent agent.yaml] [--host 127.0.0.1] [--port 8900]
+                           [--sessions-dir ~/.tring/studio/sessions]
 """
 
 from __future__ import annotations
@@ -19,14 +20,15 @@ from tring.studio.server import (
     DEFAULT_PORT,
     StudioServer,
 )
+from tring.studio.store import DEFAULT_SESSIONS_DIR
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m tring.studio",
         description=(
-            "Tring Studio: edit an agent spec and run live text sessions "
-            "against it in the browser."
+            "Tring Studio: edit an agent spec, run live sessions against it in "
+            "the browser (typed or spoken), and replay the ones you kept."
         ),
     )
     parser.add_argument(
@@ -54,6 +56,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_PORT,
         help="TCP port (default: %(default)s); 0 picks a free one.",
     )
+    parser.add_argument(
+        "--sessions-dir",
+        type=Path,
+        default=DEFAULT_SESSIONS_DIR,
+        metavar="PATH",
+        help=(
+            "where finished sessions are kept for replay (default: %(default)s). "
+            "One JSON-lines file per session, plus an index."
+        ),
+    )
     parser.add_argument("--version", action="version", version=f"tring {__version__}")
     return parser
 
@@ -67,6 +79,11 @@ def _banner(server: StudioServer) -> str:
         [
             f"Tring Studio {__version__}",
             f"  agent  {agent_line}",
+            # Named on startup rather than buried in a doc: the studio writes
+            # every session to disk, and where it writes is the developer's
+            # business the first time they run it, not the first time they go
+            # looking for the files.
+            f"  saves  {server.sessions.root}",
             f"  open   {server.url}",
             "",
             "Press Ctrl-C to stop.",
@@ -74,8 +91,10 @@ def _banner(server: StudioServer) -> str:
     )
 
 
-async def _serve(agent: Path, host: str, port: int) -> None:
-    server = StudioServer(agent_path=agent, host=host, port=port)
+async def _serve(agent: Path, host: str, port: int, sessions_dir: Path) -> None:
+    server = StudioServer(
+        agent_path=agent, host=host, port=port, sessions_dir=sessions_dir
+    )
     await server.start()
     # Printed after binding, so `--port 0` reports the port it actually got.
     print(_banner(server), flush=True)
@@ -88,7 +107,7 @@ async def _serve(agent: Path, host: str, port: int) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        asyncio.run(_serve(args.agent, args.host, args.port))
+        asyncio.run(_serve(args.agent, args.host, args.port, args.sessions_dir))
     except KeyboardInterrupt:
         print("\nstudio stopped.", flush=True)
     except ImportError as exc:

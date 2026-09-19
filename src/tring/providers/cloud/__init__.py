@@ -329,6 +329,10 @@ from tring.providers.cloud import llm_extra as _llm_extra  # noqa: F401,E402
 # verification sources.
 from tring.providers.cloud import s2s_extra as _s2s_extra  # noqa: F401,E402
 
+# Registers GeminiLiveS2S ("s2s","gemini_live"); see that module's docstring
+# for endpoint/message/pricing verification sources and its documented skips.
+from tring.providers.cloud import s2s_gemini as _s2s_gemini  # noqa: F401,E402
+
 # Registers AssemblyAISTT ("stt","assemblyai"), OpenAISTT ("stt","openai_stt"),
 # and SarvamSTT ("stt","sarvam"); see that module's docstring for
 # endpoint/usage verification sources.

@@ -22,7 +22,32 @@ export interface AgentSpec {
     routing: { default: { stt?: string; llm?: string; tts?: string } };
   };
   tools: ToolDef[];
+  /** Free-form spec metadata. `metadata.flow` is where a compiled flow graph
+   *  round-trips, which is what lets the canvas reopen the flow that built a
+   *  spec instead of reverse-engineering one out of the persona prose. */
+  metadata?: Record<string, unknown>;
 }
+
+/** One row of `GET /api/sessions`, newest first. `agent` is null for a
+ *  session that died before it emitted `session_started`. */
+export interface SessionSummary {
+  id: string;
+  started: string;
+  agent: string | null;
+  turns: number;
+  cost: number;
+}
+
+/** `GET /api/sessions/{id}`: the summary, plus every stored event. */
+export interface SessionDetail extends SessionSummary {
+  events: SessionEvent[];
+}
+
+/** `POST /api/flow/compile`. `note` reports what the compile had to do
+ *  without (a saved spec that would not load), never a silent downgrade. */
+export type CompileResult =
+  | { ok: true; yaml: string; note?: string }
+  | { ok: false; error: string };
 
 export interface SessionEvent {
   type: string;
@@ -54,9 +79,22 @@ export interface SessionEvent {
 }
 
 export type ServerMsg =
-  | { type: "ready"; session_id: string; capabilities: Record<string, unknown> }
+  | {
+      type: "ready";
+      session_id: string;
+      capabilities: Record<string, unknown>;
+      /** v0.4: which STT slot the session actually got. Absent from a v0.3
+       *  server, so every read of it treats "missing" as "typed turns". */
+      mode?: { audio: boolean; stt: string | null };
+    }
   | { type: "event"; event: SessionEvent }
   | { type: "audio_progress"; bytes: number }
+  /** The answer to `{"type": "mode", "audio": …}`: what the slot became, not
+   *  what was asked for. `stt` is null when no session is live yet. */
+  | { type: "mode"; audio: boolean; stt: string | null }
+  /** Precedes the first binary bot-audio frame, and is re-sent only when the
+   *  format changes. Providers do not all synthesize at the 16 kHz wire rate. */
+  | { type: "audio_format"; sample_rate: number; channels: number; encoding: string }
   | { type: "error"; message: string };
 
 export type TranscriptItem =

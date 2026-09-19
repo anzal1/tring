@@ -17,6 +17,10 @@ interface Props {
   yaml: string;
   spec: AgentSpec | null; // null => hand-written YAML, raw editor only
   onSave: (yamlBody: string) => Promise<{ ok: boolean; error?: string }>;
+  /** A spec handed over by the flow compiler, loaded into the YAML draft and
+   *  left there. `nonce` distinguishes two compiles of the same text; the
+   *  save button is still the only thing that writes anything. */
+  incoming?: { text: string; nonce: number };
 }
 
 const EMPTY_TOOL: ToolDef = { name: "", description: "", parameters: {}, choreographed: true };
@@ -24,7 +28,7 @@ const EMPTY_TOOL: ToolDef = { name: "", description: "", parameters: {}, choreog
 /** The form serializes to JSON, which is valid YAML, so the server's
  *  yaml.safe_load path is untouched. Hand-written YAML gets the raw editor
  *  rather than a lossy round-trip through a JS YAML parser. */
-export function AgentPanel({ meta, yaml, spec, onSave }: Props) {
+export function AgentPanel({ meta, yaml, spec, onSave, incoming }: Props) {
   const yamlOnly = spec === null;
   const [tab, setTab] = useState(yamlOnly ? "yaml" : "form");
   const [draft, setDraft] = useState<AgentSpec>(
@@ -42,6 +46,15 @@ export function AgentPanel({ meta, yaml, spec, onSave }: Props) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => setYamlDraft(yaml), [yaml]);
+  // A compiled flow arrives as text, in the text editor, unsaved: the review
+  // drawer already showed it, and what happens to the agent stays the
+  // developer's decision.
+  useEffect(() => {
+    if (!incoming) return;
+    setYamlDraft(incoming.text);
+    setTab("yaml");
+    setMsg({ ok: true, text: "compiled flow loaded, not saved" });
+  }, [incoming]);
   useEffect(() => {
     if (spec) {
       setDraft(spec);
@@ -238,7 +251,9 @@ export function AgentPanel({ meta, yaml, spec, onSave }: Props) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** A labelled control. Exported because the flow inspector edits the same
+ *  kinds of field and should look identical doing it. */
+export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5 text-[11.5px] text-muted-foreground">
       {label}

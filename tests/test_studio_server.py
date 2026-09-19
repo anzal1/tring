@@ -26,25 +26,45 @@ from typing import Any
 
 import httpx
 import pytest
+import yaml
 
 pytest.importorskip("websockets", reason="tring[transports] is not installed")
 
 from websockets.asyncio.client import connect
 
 from tring import __version__
-from tring.providers.base import LLMChunk, LLMProvider
+from tring.agent import AgentSpec
+from tring.providers.base import (
+    LLMChunk,
+    LLMProvider,
+    STTProvider,
+    STTResult,
+    TTSChunk,
+    TTSProvider,
+    Usage,
+)
 from tring.providers.registry import register
+from tring.runtimes.base import AudioFrame
 from tring.studio.server import DEMO_AGENT, StudioServer
 from tring.studio.silent_tts import SILENT_TTS_NAME
 
 # ---------------------------------------------------------------------------
-# A fake LLM, registered in the real registry so specs resolve it normally
+# Fake providers, registered in the real registry so specs resolve them
+# normally. The house pattern from tests/test_cascade.py.
 # ---------------------------------------------------------------------------
 
 STUDIO_LLM_NAME = "test_studio_llm"
+STUDIO_STT_NAME = "test_studio_stt"
+STUDIO_TTS_NAME = "test_studio_tts"
 
 #: What the fake says, in the envelope the cascade runtime asks for.
 SCRIPTED_REPLY = '{"speak": "We open at nine.", "tool_call": null}'
+
+#: What the fake recognizer hears, whatever PCM it is handed.
+SCRIPTED_TRANSCRIPT = "when do you open"
+
+#: One frame of bot audio. Short, non-empty, and recognisable on the wire.
+SPOKEN_PCM = b"\x01\x02\x03\x04"
 
 
 @register("llm", STUDIO_LLM_NAME)
@@ -62,6 +82,54 @@ class ScriptedStudioLLM(LLMProvider):
         for index in range(0, len(SCRIPTED_REPLY), 11):
             yield LLMChunk(text=SCRIPTED_REPLY[index : index + 11])
         yield LLMChunk(text="", finish=True)
+
+
+@register("stt", STUDIO_STT_NAME)
+class ScriptedStudioSTT(STTProvider):
+    """A recognizer that reports one fixed final transcript per audio frame.
+
+    Deliberately indifferent to what the PCM contains: the thing under test is
+    the microphone *path* (binary frame to ``push_audio`` to a turn), not
+    anybody's acoustic model.
+    """
+
+    name = STUDIO_STT_NAME
+
+    def __init__(self, **_options: Any) -> None:
+        pass
+
+    async def transcribe(
+        self, frames: AsyncIterator[AudioFrame], language: str | None = None
+    ) -> AsyncIterator[STTResult]:
+        async for frame in frames:
+            if frame.pcm:
+                yield STTResult(text=SCRIPTED_TRANSCRIPT, final=True, language=language)
+
+
+@register("tts", STUDIO_TTS_NAME)
+class ScriptedStudioTTS(TTSProvider):
+    """Emits one small frame of audio per utterance, at a non-default rate.
+
+    24 kHz on purpose: several real engines synthesize above the 16 kHz wire
+    rate, and the studio has to tell the browser which one it is getting
+    rather than letting it assume.
+    """
+
+    name = STUDIO_TTS_NAME
+
+    def __init__(self, **_options: Any) -> None:
+        pass
+
+    async def synthesize(
+        self, text: AsyncIterator[str], voice: str | None = None
+    ) -> AsyncIterator[TTSChunk]:
+        spoken = "".join([chunk async for chunk in text])
+        if not spoken:
+            return
+        yield TTSChunk(
+            frame=AudioFrame(pcm=SPOKEN_PCM, sample_rate=24000, channels=1),
+            usage=[Usage(units=float(len(spoken)), unit_name="tts_chars")],
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +150,25 @@ runtime:
 """
 
 
+MIC_AGENT_YAML = f"""
+name: studio-mic-test
+persona: You are a terse front-desk assistant.
+greeting: Front desk.
+runtime:
+  mode: cascade
+  routing:
+    default:
+      stt: {STUDIO_STT_NAME}
+      llm: {STUDIO_LLM_NAME}
+      tts: {STUDIO_TTS_NAME}
+"""
+
+
 async def _serve(tmp_path: Path, **kwargs: Any) -> AsyncIterator[StudioServer]:
+    # Session history goes under tmp_path, never under the developer's real
+    # ~/.tring: a test suite that writes to a home directory is a test suite
+    # that fails differently on the machine that has already run it.
+    kwargs.setdefault("sessions_dir", tmp_path / "sessions")
     server = StudioServer(
         agent_path=tmp_path / "agent.yaml", host="127.0.0.1", port=0, **kwargs
     )
@@ -108,14 +194,30 @@ async def agent_server(tmp_path: Path) -> AsyncIterator[StudioServer]:
         yield running
 
 
+@pytest.fixture
+async def mic_server(tmp_path: Path) -> AsyncIterator[StudioServer]:
+    """A studio whose spec has a real (fake, but real-shaped) STT and TTS."""
+    (tmp_path / "agent.yaml").write_text(MIC_AGENT_YAML, encoding="utf-8")
+    async for running in _serve(tmp_path):
+        yield running
+
+
 async def _collect(
     socket: Any, until: str, limit: int = 60, timeout: float = 5.0
 ) -> list[dict[str, Any]]:
-    """Read protocol messages until a SessionEvent of type ``until`` arrives."""
+    """Read protocol messages until a SessionEvent of type ``until`` arrives.
+
+    Binary frames (bot audio) are recorded as ``{"type": "audio", "pcm": ...}``
+    so one helper drives both modes and every assertion reads off one list.
+    """
     received: list[dict[str, Any]] = []
     async with asyncio.timeout(timeout):
         while len(received) < limit:
-            message = json.loads(await socket.recv())
+            frame = await socket.recv()
+            if isinstance(frame, bytes):
+                received.append({"type": "audio", "pcm": frame})
+                continue
+            message = json.loads(frame)
             received.append(message)
             if message.get("type") == "event" and message["event"]["type"] == until:
                 return received
@@ -128,6 +230,11 @@ def _events(messages: list[dict[str, Any]], event_type: str) -> list[dict[str, A
         for m in messages
         if m.get("type") == "event" and m["event"]["type"] == event_type
     ]
+
+
+def _events_of(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every forwarded SessionEvent, in order, with the envelope stripped."""
+    return [m["event"] for m in messages if m.get("type") == "event"]
 
 
 # ---------------------------------------------------------------------------
@@ -506,3 +613,337 @@ async def test_a_websocket_upgrade_to_the_wrong_path_is_refused(
     with pytest.raises(InvalidStatus):
         async with connect(f"ws://127.0.0.1:{agent_server.port}/nope"):
             pass  # pragma: no cover - the connect above must raise
+
+
+# ---------------------------------------------------------------------------
+# v0.4: session persistence and the sessions endpoints
+# ---------------------------------------------------------------------------
+
+
+async def _await_sessions(server: StudioServer, timeout: float = 5.0) -> list[dict[str, Any]]:
+    """Poll ``GET /api/sessions`` until the indexed session shows up.
+
+    A session is indexed during the server's own teardown, which runs after
+    the client's ``close()`` returns; polling is the honest way to wait for
+    the other side of a socket without reaching into the server's internals.
+    """
+    async with httpx.AsyncClient(base_url=server.url) as client:
+        async with asyncio.timeout(timeout):
+            while True:
+                listed = (await client.get("/api/sessions")).json()
+                if listed:
+                    return list(listed)
+                await asyncio.sleep(0.02)
+
+
+async def test_a_finished_session_is_listed_and_replayable(
+    agent_server: StudioServer,
+) -> None:
+    async with connect(f"ws://127.0.0.1:{agent_server.port}/ws") as socket:
+        await socket.send(json.dumps({"type": "start"}))
+        session_id = json.loads(await socket.recv())["session_id"]
+        await _collect(socket, until="bot_speech_played")
+        await socket.send(json.dumps({"type": "user_text", "text": "when do you open?"}))
+        await _collect(socket, until="bot_speech_played")
+
+    listed = await _await_sessions(agent_server)
+
+    assert [row["id"] for row in listed] == [session_id]
+    summary = listed[0]
+    assert summary["agent"] == "studio-test"
+    assert summary["turns"] == 1, "one user turn, counted off the event stream"
+    assert isinstance(summary["cost"], float)
+    assert summary["started"].startswith("20")  # ISO-8601, UTC, set on the first event
+
+    async with httpx.AsyncClient(base_url=agent_server.url) as client:
+        replay = (await client.get(f"/api/sessions/{session_id}")).json()
+
+    kinds = [event["type"] for event in replay["events"]]
+    assert kinds[0] == "session_started"
+    # The tail matters most: these are emitted after the event forwarder has
+    # been cancelled, so they only reach the file if teardown syncs the rest.
+    assert kinds[-1] == "session_ended"
+    assert replay["turns"] == summary["turns"]
+    assert [e["text"] for e in replay["events"] if e["type"] == "bot_utterance"] == [
+        "Front desk.",
+        "We open at nine.",
+    ]
+
+
+async def test_the_stored_session_is_the_event_stream_the_socket_showed(
+    agent_server: StudioServer,
+) -> None:
+    async with connect(f"ws://127.0.0.1:{agent_server.port}/ws") as socket:
+        await socket.send(json.dumps({"type": "start"}))
+        session_id = json.loads(await socket.recv())["session_id"]
+        live = _events_of(await _collect(socket, until="bot_speech_played"))
+
+    await _await_sessions(agent_server)
+    async with httpx.AsyncClient(base_url=agent_server.url) as client:
+        stored = (await client.get(f"/api/sessions/{session_id}")).json()["events"]
+
+    # Byte for byte the same dumps, in the same order: replay is a cursor over
+    # stored events, so anything the file drops is a panel the UI cannot draw.
+    assert stored[: len(live)] == live
+
+
+async def test_an_unknown_or_unsafe_session_id_is_a_404(server: StudioServer) -> None:
+    async with httpx.AsyncClient(base_url=server.url) as client:
+        listed = await client.get("/api/sessions")
+        missing = await client.get("/api/sessions/deadbeef")
+        traversal = await client.get("/api/sessions/..%2f..%2fagent.yaml")
+
+    assert listed.json() == []
+    assert missing.status_code == 404
+    assert traversal.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# v0.4: POST /api/flow/compile
+# ---------------------------------------------------------------------------
+
+SMALL_FLOW: dict[str, Any] = {
+    "nodes": [
+        {"id": "welcome", "kind": "say", "text": "Front desk."},
+        {
+            "id": "ask_name",
+            "kind": "ask",
+            "prompt": "Who am I speaking with?",
+            "slots": [{"name": "full_name", "description": "the caller's full name"}],
+        },
+        {"id": "bye", "kind": "end", "text": "Thanks, goodbye."},
+    ],
+    "edges": [
+        {"from": "welcome", "to": "ask_name"},
+        {"from": "ask_name", "to": "bye"},
+    ],
+}
+
+
+async def test_flow_compile_returns_a_spec_without_saving_it(
+    agent_server: StudioServer,
+) -> None:
+    before = agent_server.agent_path.read_text(encoding="utf-8")
+
+    async with httpx.AsyncClient(base_url=agent_server.url) as client:
+        body = (await client.post("/api/flow/compile", json={"flow": SMALL_FLOW})).json()
+
+    assert body["ok"] is True
+    compiled = AgentSpec.model_validate(yaml.safe_load(body["yaml"]))
+    assert "1. SAY (welcome)" in compiled.persona
+    assert compiled.metadata["flow"]["nodes"][0]["id"] == "welcome"
+    # The saved spec supplies what a flow has no opinion about...
+    assert compiled.runtime.routing["default"].llm == STUDIO_LLM_NAME
+    # ...and compiling is not saving.
+    assert agent_server.agent_path.read_text(encoding="utf-8") == before
+
+
+async def test_flow_compile_reports_a_broken_graph_as_ui_copy(
+    agent_server: StudioServer,
+) -> None:
+    broken = {
+        "nodes": [
+            {"id": "welcome", "kind": "say"},  # no text
+            {"id": "bye", "kind": "end"},
+        ],
+        "edges": [{"from": "welcome", "to": "bye"}],
+    }
+
+    async with httpx.AsyncClient(base_url=agent_server.url) as client:
+        rejected = (await client.post("/api/flow/compile", json={"flow": broken})).json()
+        malformed = (await client.post("/api/flow/compile", json={"nodes": []})).json()
+
+    # HTTP 200 with ok:false, exactly like POST /api/agent: the text is copy
+    # the canvas shows next to the offending node.
+    assert rejected["ok"] is False
+    assert "node 'welcome'" in rejected["error"]
+    assert "'text'" in rejected["error"]
+    assert malformed["ok"] is False
+
+
+# ---------------------------------------------------------------------------
+# v0.4: microphone mode
+# ---------------------------------------------------------------------------
+
+
+class _RecordingRuntime:
+    """A stand-in runtime that records the frames the bridge pushes into it.
+
+    The binary path is worth isolating from the cascade: what this test asks
+    is "did the exact bytes of one binary frame reach ``push_audio`` with the
+    wire format the protocol promises", and a real runtime would answer that
+    question through three providers and a turn loop.
+    """
+
+    def __init__(self, session: Any, **_kwargs: Any) -> None:
+        self.session = session
+        self.on_bot_audio: Any = None
+        self.frames: list[AudioFrame] = []
+
+    @property
+    def capabilities(self) -> Any:
+        from tring.runtimes.base import RuntimeCapabilities
+
+        return RuntimeCapabilities(
+            live_transcripts=True,
+            mid_call_tool_calls=False,
+            barge_in=False,
+            exact_usage_reporting=False,
+        )
+
+    async def start(self) -> None:
+        pass
+
+    async def push_audio(self, frame: AudioFrame) -> None:
+        from tring.events import UserTranscript
+
+        self.frames.append(frame)
+        # Echoed back as an event so the test can wait on the socket instead
+        # of sleeping: the transcript names the frame it came from.
+        self.session.emit(
+            UserTranscript(
+                session_id=self.session.session_id,
+                at=self.session.elapsed,
+                text=f"{len(frame.pcm)} bytes at {frame.sample_rate} Hz",
+            )
+        )
+
+    async def stop(self, reason: str = "completed") -> None:
+        pass
+
+
+async def test_a_binary_frame_reaches_push_audio_as_16k_mono_pcm(
+    mic_server: StudioServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tring.studio import server as server_module
+
+    recorded: list[_RecordingRuntime] = []
+
+    def build(session: Any, **kwargs: Any) -> _RecordingRuntime:
+        runtime = _RecordingRuntime(session, **kwargs)
+        recorded.append(runtime)
+        return runtime
+
+    monkeypatch.setattr(server_module, "CascadeRuntime", build)
+
+    async with connect(f"ws://127.0.0.1:{mic_server.port}/ws") as socket:
+        await socket.send(json.dumps({"type": "mode", "audio": True}))
+        assert json.loads(await socket.recv()) == {"type": "mode", "audio": True, "stt": None}
+
+        await socket.send(json.dumps({"type": "start"}))
+        ready = json.loads(await socket.recv())
+        assert ready["mode"] == {"audio": True, "stt": STUDIO_STT_NAME}
+
+        await socket.send(b"\x00\x01" * 160)  # 10 ms of 16 kHz mono PCM
+        heard = await _collect(socket, until="user_transcript")
+
+    assert _events(heard, "user_transcript")[0]["text"] == "320 bytes at 16000 Hz"
+    assert recorded[0].frames[0].pcm == b"\x00\x01" * 160
+    assert recorded[0].frames[0].channels == 1
+
+
+async def test_microphone_mode_runs_a_real_turn_and_streams_bot_audio_back(
+    mic_server: StudioServer,
+) -> None:
+    async with connect(f"ws://127.0.0.1:{mic_server.port}/ws") as socket:
+        await socket.send(json.dumps({"type": "mode", "audio": True}))
+        await socket.recv()
+        await socket.send(json.dumps({"type": "start"}))
+        assert json.loads(await socket.recv())["type"] == "ready"
+        greeting = await _collect(socket, until="bot_speech_played")
+
+        await socket.send(b"\x00\x01" * 160)
+        turn = await _collect(socket, until="bot_speech_played")
+
+    # The browser cannot play PCM without being told the rate, and this engine
+    # is not at the wire rate, so the format is announced before the audio.
+    formats = [m for m in greeting if m["type"] == "audio_format"]
+    assert formats[0] == {
+        "type": "audio_format",
+        "sample_rate": 24000,
+        "channels": 1,
+        "encoding": "pcm_s16le",
+    }
+    assert [m["pcm"] for m in greeting if m["type"] == "audio"] == [SPOKEN_PCM]
+    # Announced once, not once per frame.
+    assert [m for m in turn if m["type"] == "audio_format"] == []
+
+    assert _events(turn, "user_transcript")[0]["text"] == SCRIPTED_TRANSCRIPT
+    assert _events(turn, "bot_utterance")[0]["text"] == "We open at nine."
+    assert [m["pcm"] for m in turn if m["type"] == "audio"] == [SPOKEN_PCM]
+    # audio_progress survives alongside the frames, still coalesced and still
+    # cumulative: the speech meter works the same in both modes.
+    progress = [m for m in greeting if m["type"] == "audio_progress"]
+    assert progress and progress[-1]["bytes"] == len(SPOKEN_PCM)
+
+
+@pytest.mark.parametrize(
+    ("configured", "fragment"),
+    [
+        pytest.param("no_such_engine", "no stt provider named", id="unknown-engine"),
+        pytest.param("text_input", "not a speech recognizer", id="typed-text-stand-in"),
+    ],
+)
+async def test_microphone_mode_falls_back_to_text_and_says_why(
+    tmp_path: Path, configured: str, fragment: str
+) -> None:
+    (tmp_path / "agent.yaml").write_text(
+        MIC_AGENT_YAML.replace(f"stt: {STUDIO_STT_NAME}", f"stt: {configured}"),
+        encoding="utf-8",
+    )
+
+    async for running in _serve(tmp_path):
+        async with connect(f"ws://127.0.0.1:{running.port}/ws") as socket:
+            await socket.send(json.dumps({"type": "mode", "audio": True}))
+            await socket.recv()
+            await socket.send(json.dumps({"type": "start"}))
+            ready = json.loads(await socket.recv())
+            messages = await _collect(socket, until="bot_utterance")
+
+            # A frame sent anyway is dropped rather than decoded as text, and
+            # the client is told once instead of once per 20 ms of speech.
+            await socket.send(b"\x00\x01" * 160)
+            await socket.send(b"\x00\x01" * 160)
+            await socket.send(json.dumps({"type": "user_text", "text": "typed instead"}))
+            after = await _collect(socket, until="user_transcript")
+
+    assert ready["mode"] == {"audio": False, "stt": "text_input"}
+    notes = [e["message"].lower() for e in _events(messages, "error")]
+    assert any(fragment in note for note in notes), notes
+    assert any("falling back to 'text_input'" in note for note in notes)
+
+    dropped = [m for m in after if m["type"] == "error"]
+    assert len(dropped) == 1, "one warning per session, not one per frame"
+    assert _events(after, "user_transcript")[0]["text"] == "typed instead"
+
+
+async def test_switching_mode_mid_session_rebuilds_it(mic_server: StudioServer) -> None:
+    async with connect(f"ws://127.0.0.1:{mic_server.port}/ws") as socket:
+        await socket.send(json.dumps({"type": "start"}))
+        typed = json.loads(await socket.recv())
+        await _collect(socket, until="bot_utterance")
+
+        await socket.send(json.dumps({"type": "mode", "audio": True}))
+        rebuilt = json.loads(await socket.recv())
+        while rebuilt["type"] != "ready":  # pragma: no cover - ready comes first
+            rebuilt = json.loads(await socket.recv())
+
+    # The STT slot is bound when the runtime starts, so switching means a new
+    # session, announced exactly the way `reset` announces one.
+    assert typed["mode"] == {"audio": False, "stt": "text_input"}
+    assert rebuilt["mode"] == {"audio": True, "stt": STUDIO_STT_NAME}
+    assert rebuilt["session_id"] != typed["session_id"]
+
+
+async def test_a_mode_message_without_a_boolean_is_reported_not_fatal(
+    agent_server: StudioServer,
+) -> None:
+    async with connect(f"ws://127.0.0.1:{agent_server.port}/ws") as socket:
+        await socket.send(json.dumps({"type": "mode", "audio": "yes please"}))
+        complaint = json.loads(await socket.recv())
+
+        await socket.send(json.dumps({"type": "start"}))
+        ready = json.loads(await socket.recv())
+
+    assert complaint["type"] == "error" and "audio" in complaint["message"]
+    assert ready["type"] == "ready"

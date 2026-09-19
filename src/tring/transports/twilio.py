@@ -4,7 +4,9 @@ WebSocket, driven by TwiML's ``<Connect><Stream>`` verb.
 Message schema (event names, nesting, field names) verified live against
 https://www.twilio.com/docs/voice/media-streams/websocket-messages on
 2026-09-19: ``connected`` -> ``start`` -> many ``media`` -> ``stop``, with
-``mark`` and ``clear`` as the two bidirectional control messages. Audio is
+``mark`` and ``clear`` as the two bidirectional control messages and
+``dtmf`` (bidirectional Streams only) forwarded as the ``DtmfReceived``
+session event -- see :meth:`_TwilioBridge._handle_dtmf`. Audio is
 always G.711 mu-law at 8 kHz mono, base64 inside ``media.payload`` --
 :mod:`tring.transports.mulaw` is the codec, kept in its own module because
 it has nothing Twilio-specific in it (a SIP/RTP bridge needs the exact same
@@ -48,7 +50,7 @@ from dataclasses import dataclass
 from itertools import count
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from tring.events import BotUtterance, Interruption
+from tring.events import BotUtterance, DtmfReceived, Interruption
 from tring.runtimes.base import AudioFrame
 from tring.session import CallSession
 from tring.transports.mulaw import linear16_to_mulaw, mulaw_to_linear16, resample_linear16
@@ -293,7 +295,9 @@ class _TwilioBridge:
                 self._handle_mark_ack(name)
         elif event == "stop":
             return True
-        elif event in ("connected", "dtmf"):
+        elif event == "dtmf":
+            self._handle_dtmf(msg.get("dtmf", {}))
+        elif event == "connected":
             pass  # nothing this transport needs to act on
         else:
             logger.debug("twilio: unhandled event %r", event)
@@ -324,6 +328,35 @@ class _TwilioBridge:
             return
         await self._runtime.push_audio(
             AudioFrame(pcm=pcm_16k, sample_rate=_WIRE_SAMPLE_RATE, channels=1)
+        )
+
+    def _handle_dtmf(self, dtmf: dict[str, Any]) -> None:
+        """A caller pressed a keypad digit mid-call.
+
+        Message shape verified live against
+        https://www.twilio.com/docs/voice/media-streams/websocket-messages
+        on 2026-09-19: ``{"event": "dtmf", "streamSid": ..., "sequenceNumber":
+        ..., "dtmf": {"track": "inbound_track", "digit": "1"}}``. DTMF
+        messages are only sent on bidirectional Streams -- i.e. exactly the
+        ``<Connect><Stream>`` verb this transport already requires (see the
+        module docstring), so no capability check is needed here. ``track``
+        is documented as always ``"inbound_track"`` (a caller's keypad tone,
+        never the bot's own audio) and carries nothing this transport needs
+        to branch on -- only ``digit`` is forwarded, as the new
+        ``DtmfReceived`` session event (``events.py``) tool handlers and
+        analytics consumers subscribe to instead of parsing Twilio's wire
+        format themselves.
+        """
+        digit = dtmf.get("digit")
+        if not isinstance(digit, str) or not digit:
+            logger.debug("twilio: dropping dtmf message with no digit: %r", dtmf)
+            return
+        self._runtime.session.emit(
+            DtmfReceived(
+                session_id=self._runtime.session.session_id,
+                at=self._runtime.session.elapsed,
+                digit=digit,
+            )
         )
 
     def _handle_mark_ack(self, name: str) -> None:

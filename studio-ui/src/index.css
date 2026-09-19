@@ -178,3 +178,92 @@
 @media (prefers-reduced-motion: reduce) {
   .enter { transition: opacity 150ms ease; @starting-style { transform: none; } }
 }
+
+/* hairline lift on pointing devices only: a touch device has no hover state
+   to leave, so it would be stuck in the lifted one */
+.lift { transition: box-shadow 150ms var(--ease-snap); }
+@media (hover: hover) {
+  .lift:hover { box-shadow: 0 0 0 1px var(--ring); }
+}
+
+/* ── flow canvas ────────────────────────────────────────────────────────────
+   React Flow reads its own --xy-* variables, so dressing it is a matter of
+   handing it the studio's tokens rather than overriding its stylesheet. Only
+   base.css is imported (the structural half); node and control chrome is the
+   studio's own, which is why colour never appears here: the 5px kind dot on a
+   node card is the whole palette. */
+.flow-canvas {
+  --xy-background-color: var(--background);
+  --xy-background-pattern-color: rgba(255, 255, 255, 0.11);
+  --xy-edge-stroke: rgba(255, 255, 255, 0.22);
+  --xy-edge-stroke-selected: var(--foreground);
+  --xy-edge-stroke-width: 1;
+  --xy-connectionline-stroke: var(--muted-foreground);
+  --xy-connectionline-stroke-width: 1;
+  --xy-handle-background-color: var(--muted-foreground);
+  --xy-selection-background-color: rgba(255, 255, 255, 0.04);
+  --xy-selection-border: 1px dashed var(--ring);
+  --xy-attribution-background-color: transparent;
+}
+.flow-canvas .react-flow__handle {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--card);
+  border-radius: 9999px;
+  transition: background-color 150ms var(--ease-snap);
+}
+@media (hover: hover) {
+  .flow-canvas .react-flow__handle:hover { background-color: var(--foreground); }
+}
+/* branch conditions: the same mono chip the events panel uses for types */
+.flow-canvas .react-flow__edge-text {
+  fill: var(--muted-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+.flow-canvas .react-flow__edge-textbg { fill: var(--background); }
+.flow-canvas .react-flow__attribution a { color: var(--muted-foreground); opacity: 0.6; }
+
+/* ── replay scrubber ────────────────────────────────────────────────────────
+   A range input, tokenised: hairline track, neutral thumb, no accent colour.
+   Both vendor thumb selectors are needed and cannot be combined in one rule. */
+.scrub {
+  appearance: none;
+  height: 16px;
+  background: transparent;
+  outline: none;
+}
+.scrub::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 2px;
+  background: var(--input);
+}
+.scrub::-moz-range-track {
+  height: 2px;
+  border-radius: 2px;
+  background: var(--input);
+}
+.scrub::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--muted-foreground);
+  transition: background-color 150ms var(--ease-snap);
+}
+.scrub::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--muted-foreground);
+  transition: background-color 150ms var(--ease-snap);
+}
+.scrub:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--ring); }
+.scrub:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--ring); }
+.scrub:disabled { opacity: 0.5; }
+@media (hover: hover) {
+  .scrub:not(:disabled):hover::-webkit-slider-thumb { background: var(--foreground); }
+  .scrub:not(:disabled):hover::-moz-range-thumb { background: var(--foreground); }
+}

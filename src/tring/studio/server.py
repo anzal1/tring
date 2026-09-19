@@ -40,13 +40,18 @@ persistent-connection implementation is a genuine source of hangs.
 The session bridge
 ------------------
 
-One live :class:`~tring.session.CallSession` per WebSocket connection. The
-browser has no microphone path, so the STT slot is forced to ``text_input`` —
-the provider that reads UTF-8 text out of an :class:`AudioFrame`'s ``pcm``
-field — and typed turns are pushed in as ordinary audio frames. Everything
-above that (turn loop, envelope parsing, tool choreography, playback ledger,
-cost metering) is the unmodified production runtime; the studio subscribes to
-its event stream like any other consumer and forwards events verbatim.
+One live :class:`~tring.session.CallSession` per WebSocket connection. By
+default the STT slot is forced to ``text_input`` — the provider that reads
+UTF-8 text out of an :class:`AudioFrame`'s ``pcm`` field — and typed turns are
+pushed in as ordinary audio frames. When the browser asks for microphone mode
+(``{"type": "mode", "audio": true}``) the spec's own STT provider is kept
+instead, binary frames of 16 kHz PCM go straight to ``push_audio``, and bot
+audio comes back as binary frames. Everything above that (turn loop, envelope
+parsing, tool choreography, playback ledger, cost metering) is the unmodified
+production runtime; the studio subscribes to its event stream like any other
+consumer, forwards events verbatim, and appends each one to
+``~/.tring/studio/sessions`` so a finished call can be replayed later
+(:mod:`tring.studio.store`).
 """
 
 from __future__ import annotations
@@ -72,6 +77,7 @@ from tring.agent import AgentSpec, ProviderSelection, RuntimeConfig
 from tring.cost.meter import CostMeter
 from tring.cost.rates import DEFAULT_RATES
 from tring.events import SessionError
+from tring.flow import FlowError, FlowGraph, compile_flow
 from tring.providers import registry
 from tring.runtimes.base import AudioFrame
 
@@ -83,6 +89,7 @@ from tring.runtimes.base import AudioFrame
 from tring.runtimes.cascade import CascadeRuntime, _options_for
 from tring.session import CallSession
 from tring.studio.silent_tts import SILENT_TTS_NAME
+from tring.studio.store import SessionStore
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from asyncio import StreamReader, StreamWriter
@@ -99,8 +106,14 @@ DEFAULT_AGENT_PATH = Path("agent.yaml")
 #: ``index.html`` plus a hashed ``assets/`` directory, all served from here.
 DEFAULT_STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-#: The STT slot the studio always forces. See the module docstring.
+#: The STT slot the studio forces for typed turns. See the module docstring.
 TEXT_INPUT_STT_NAME = "text_input"
+
+#: The only format the studio accepts on a binary WebSocket frame, and the
+#: format :class:`~tring.runtimes.base.AudioFrame` calls canonical: 16 kHz mono
+#: 16-bit little-endian PCM. The browser downsamples to it before sending, so
+#: the server never resamples and never guesses.
+MIC_SAMPLE_RATE = 16000
 
 # Request limits. Generous for a local tool, finite so a stray client cannot
 # make the server allocate without bound.
@@ -121,6 +134,10 @@ _AUDIO_PROGRESS_INTERVAL = 0.1
 #: How long :meth:`StudioServer.close` lets live connections finish their own
 #: teardown before cancelling them.
 _SHUTDOWN_GRACE = 5.0
+
+#: ``GET /api/sessions/{id}``: everything after this prefix is the session id,
+#: which the store validates before it becomes a path.
+_SESSION_PREFIX = "/api/sessions/"
 
 # Explicit rather than `mimetypes.guess_type`, whose mapping for `.js`, `.mjs`
 # and `.map` depends on the host's mime database (and on Windows, the registry).
@@ -187,13 +204,16 @@ def _text_response(status: HTTPStatus, message: str) -> _Response:
     return _Response(status, message.encode("utf-8"), "text/plain; charset=utf-8")
 
 
-def _json_response(payload: dict[str, Any]) -> _Response:
+def _json_response(payload: Any) -> _Response:
     """Every JSON endpoint answers 200, including validation failures.
 
     ``POST /api/agent`` reports a rejected spec as ``{"ok": false, "error": ...}``
     rather than as an HTTP error, because the error text is UI copy: the studio
     renders it next to the editor, and a 4xx would make ``fetch`` callers guess
     at whether the body is machine-readable.
+
+    The payload is typed loosely because ``GET /api/sessions`` answers with a
+    JSON array, which is the shape the protocol doc promises the frontend.
     """
     return _Response(
         HTTPStatus.OK,
@@ -379,6 +399,19 @@ class _WebSocketLink:
         self._protocol.send_text(json.dumps(payload).encode("utf-8"))
         self._flush()
 
+    def send_bytes(self, payload: bytes) -> None:
+        """Send one binary frame: bot audio, and nothing else (protocol doc).
+
+        Written without draining, exactly like :meth:`send_json`. Back-pressure
+        on a loopback socket carrying 32 kB/s of PCM is not the thing that will
+        go wrong first, and awaiting here would put an interleaving point in
+        the middle of a callback the runtime calls synchronously.
+        """
+        if not self._is_open():
+            return
+        self._protocol.send_binary(payload)
+        self._flush()
+
     def close(self, code: int = 1000, reason: str = "") -> None:
         """Start the closing handshake, if it has not started already."""
         if not self._is_open():
@@ -391,12 +424,19 @@ class _WebSocketLink:
 
         return self._protocol.state is State.OPEN
 
-    async def messages(self) -> AsyncIterator[str]:
-        """Yield complete text messages until the connection ends."""
+    async def messages(self) -> AsyncIterator[str | bytes]:
+        """Yield complete messages until the connection ends.
+
+        A ``str`` is a JSON control message; ``bytes`` is one frame of
+        microphone PCM. Both opcodes are reassembled the same way, because a
+        browser is free to fragment either one, and the only difference the
+        caller cares about is which type came out.
+        """
         from websockets.frames import Frame, Opcode
 
         buffer = bytearray()
         collecting = False
+        binary = False
 
         while True:
             # The how-to's rule for a finished closing handshake: do not wait
@@ -420,22 +460,22 @@ class _WebSocketLink:
             for event in self._protocol.events_received():
                 if not isinstance(event, Frame):  # pragma: no cover - post-handshake
                     continue
-                if event.opcode is Opcode.TEXT:
+                if event.opcode in (Opcode.TEXT, Opcode.BINARY):
                     buffer.clear()
                     buffer += event.data
                     collecting = True
+                    binary = event.opcode is Opcode.BINARY
                 elif event.opcode is Opcode.CONT and collecting:
                     buffer += event.data
                 else:
-                    # Binary payloads and control frames: the studio speaks
-                    # JSON text only, and control frames are already answered.
+                    # Control frames: already answered by the protocol layer.
                     collecting = False
                     continue
                 if event.fin:
                     collecting = False
-                    message = bytes(buffer).decode("utf-8", errors="replace")
+                    payload = bytes(buffer)
                     buffer.clear()
-                    yield message
+                    yield payload if binary else payload.decode("utf-8", errors="replace")
 
             if not await self._drain():
                 return
@@ -487,8 +527,8 @@ def _studio_mock_handlers(spec: AgentSpec) -> dict[str, Any]:
 
     return {tool.name: make(tool.name) for tool in spec.tools}
 
-def _force_studio_providers(spec: AgentSpec) -> list[str]:
-    """Rewrite a loaded spec for text-only studio use; return what changed.
+def _force_studio_providers(spec: AgentSpec, audio: bool = False) -> list[str]:
+    """Rewrite a loaded spec for studio use; return what changed and why.
 
     Mutates the in-memory copy only — nothing is written back to ``agent.yaml``,
     so the spec the user edits stays the spec they deploy.
@@ -496,10 +536,24 @@ def _force_studio_providers(spec: AgentSpec) -> list[str]:
     Every routing entry is rewritten, not just the one the agent's primary
     language selects, so switching ``language.primary`` in the editor cannot
     leave a microphone-only provider wired into the next session.
+
+    ``audio`` is the microphone mode the browser asked for. It is a *request*,
+    not a setting: the spec's own STT provider is kept only if it constructs
+    here, and otherwise the slot falls back to ``text_input`` with the reason
+    recorded. A studio that silently accepted microphone mode and then dropped
+    every frame would be worse than one that says the engine is missing.
     """
     notes: list[str] = []
     for language, selection in spec.runtime.routing.items():
-        selection.stt = TEXT_INPUT_STT_NAME
+        reason = _stt_unavailable(selection) if audio else "microphone mode is off"
+        if reason is not None:
+            if audio:
+                notes.append(
+                    f"routing[{language}]: microphone mode needs a speech recognizer "
+                    f"in the STT slot, and {selection.stt!r} cannot be one ({reason}). "
+                    f"Falling back to {TEXT_INPUT_STT_NAME!r}: type your turns instead."
+                )
+            selection.stt = TEXT_INPUT_STT_NAME
         reason = _tts_unavailable(selection)
         if reason is None:
             continue
@@ -533,9 +587,36 @@ def _tts_unavailable(selection: ProviderSelection) -> str | None:
         return "no TTS provider is configured for this routing entry"
     if name == SILENT_TTS_NAME:
         return None
+    return _cannot_construct(selection, "tts", name)
+
+
+def _stt_unavailable(selection: ProviderSelection) -> str | None:
+    """Why the selected STT provider cannot serve microphone audio.
+
+    The same construction probe as :func:`_tts_unavailable`, with one extra
+    verdict: ``text_input`` is refused outright. It constructs perfectly and it
+    is not a speech recognizer — it reads UTF-8 out of the ``pcm`` field — so
+    feeding it microphone frames would produce a transcript of mojibake rather
+    than an error anyone could diagnose.
+    """
+    name = selection.stt
+    if name is None:
+        return "no STT provider is configured for this routing entry"
+    if name == TEXT_INPUT_STT_NAME:
+        return (
+            "it is the studio's typed-text stand-in, not a speech recognizer; "
+            "choose a real STT provider in the editor to use the microphone"
+        )
+    return _cannot_construct(selection, "stt", name)
+
+
+def _cannot_construct(
+    selection: ProviderSelection, slot: registry.Kind, name: str
+) -> str | None:
+    """Ask the registry for a provider the way the runtime would, and report."""
     registry._load_builtin()
     try:
-        registry.create("tts", name, **_options_for(selection, "tts"))
+        registry.create(slot, name, **_options_for(selection, slot))
     except (ImportError, RuntimeError, LookupError, OSError) as exc:
         return _collapse(str(exc)) or type(exc).__name__
     return None
@@ -559,10 +640,23 @@ class _StudioBridge:
         self._audio_bytes = 0
         self._last_progress = float("-inf")
 
+        #: What the browser asked for, and what the session actually got. They
+        #: differ whenever the configured STT provider could not be built, and
+        #: keeping both is what lets a rebuild re-try the real provider after
+        #: the user installs it, instead of remembering only the fallback.
+        self._audio_requested = False
+        self._audio_mode = False
+        self._stt_name: str | None = None
+        self._announced_format: tuple[int, int] | None = None
+        self._warned_about_audio = False
+
     async def run(self) -> None:
         try:
             async for raw in self._link.messages():
-                await self._dispatch(raw)
+                if isinstance(raw, bytes):
+                    await self._user_audio(raw)
+                else:
+                    await self._dispatch(raw)
         finally:
             await self._teardown()
 
@@ -583,6 +677,8 @@ class _StudioBridge:
             await self._start_session()
         elif kind == "user_text":
             await self._user_text(message)
+        elif kind == "mode":
+            await self._set_mode(message)
         else:
             self._error(f"unknown message type {kind!r}")
 
@@ -599,6 +695,61 @@ class _StudioBridge:
         # typed turn enters the runtime through the same door as real audio.
         await runtime.push_audio(AudioFrame(pcm=text.encode("utf-8")))
 
+    async def _user_audio(self, pcm: bytes) -> None:
+        """One binary frame of microphone PCM, straight into the runtime.
+
+        Frames that arrive while microphone mode is off are dropped, and the
+        reason is reported exactly once per session. Dropping is not a
+        nicety: the STT slot is ``text_input`` in that state, and it would
+        decode this PCM as UTF-8 and emit the result as a user transcript.
+        Reporting once is not a nicety either, because a microphone produces
+        fifty of these a second and an error per frame is a flood, not a
+        diagnosis.
+        """
+        runtime = self._runtime
+        if runtime is not None and self._audio_mode:
+            await runtime.push_audio(
+                AudioFrame(pcm=pcm, sample_rate=MIC_SAMPLE_RATE, channels=1)
+            )
+            return
+        if self._warned_about_audio:
+            return
+        self._warned_about_audio = True
+        self._error(
+            "microphone audio was ignored: no live session"
+            if runtime is None
+            else 'microphone audio was ignored: send {"type": "mode", "audio": true} first'
+        )
+
+    async def _set_mode(self, message: dict[str, Any]) -> None:
+        """Switch the STT slot between typed turns and the microphone.
+
+        The slot is bound when the runtime starts, so switching mid-call means
+        rebuilding the session: the browser gets a fresh ``ready`` exactly as
+        it would from ``reset``, then a ``mode`` message saying what the slot
+        actually ended up being. With no session live there is nothing to
+        probe yet, so the request is recorded and answered as a request.
+        """
+        audio = message.get("audio")
+        if not isinstance(audio, bool):
+            self._error('"mode" needs a boolean "audio" field')
+            return
+        self._audio_requested = audio
+        self._warned_about_audio = False
+        if self._runtime is not None:
+            await self._start_session()
+        self._announce_mode()
+
+    def _announce_mode(self) -> None:
+        live = self._runtime is not None
+        self._link.send_json(
+            {
+                "type": "mode",
+                "audio": self._audio_mode if live else self._audio_requested,
+                "stt": self._stt_name if live else None,
+            }
+        )
+
     def _error(self, message: str) -> None:
         self._link.send_json({"type": "error", "message": message})
 
@@ -613,7 +764,15 @@ class _StudioBridge:
             self._error(f"could not load the agent spec: {_collapse(str(exc))}")
             return
 
-        fallback_notes = _force_studio_providers(spec)
+        fallback_notes = _force_studio_providers(spec, audio=self._audio_requested)
+        # The runtime binds the routing entry for the agent's primary language,
+        # so that is the entry whose STT slot decides whether the microphone is
+        # live. Read it back rather than assuming the request was honoured.
+        self._stt_name = spec.runtime.select(spec.language.primary).stt
+        self._audio_mode = self._audio_requested and self._stt_name != TEXT_INPUT_STT_NAME
+        self._announced_format = None
+        self._warned_about_audio = False
+
         session = CallSession(spec)
         runtime = CascadeRuntime(
             session,
@@ -638,6 +797,7 @@ class _StudioBridge:
                 "type": "ready",
                 "session_id": session.session_id,
                 "capabilities": runtime.capabilities.model_dump(mode="json"),
+                "mode": {"audio": self._audio_mode, "stt": self._stt_name},
             }
         )
         for note in fallback_notes:
@@ -681,19 +841,77 @@ class _StudioBridge:
         if forwarder is not None:
             with suppress(asyncio.CancelledError):
                 await forwarder
+        if session is not None:
+            await self._persist(session)
+
+    async def _persist(self, session: CallSession) -> None:
+        """Write whatever the forwarder did not, then index the session.
+
+        The forwarder is cancelled at the top of teardown, which is correct for
+        the socket (nobody is listening) and lossy for the file: the events
+        ``runtime.stop`` emits afterwards, ``session_ended`` included, are
+        emitted with no subscriber left. The session's own history has them
+        all, so the tail is handed to the store, which writes only the lines it
+        has not already written.
+
+        Failing to persist is logged, never raised: a full disk must not take
+        the studio down, and the developer still has the live event stream.
+        """
+        store = self._server.sessions
+        try:
+            history = [event.model_dump(mode="json") for event in session.history]
+            await store.sync(session.session_id, history)
+            await store.finish(session.session_id)
+        except (OSError, ValueError):
+            logger.warning(
+                "studio could not persist session %s", session.session_id, exc_info=True
+            )
 
     async def _forward_events(self, session: CallSession) -> None:
-        """Every SessionEvent, verbatim, exactly as any other consumer sees it."""
+        """Every SessionEvent, verbatim, to the socket and to the store.
+
+        The socket first: a studio that pauses the UI on a slow disk would be a
+        strange thing to have built. The store second, and per event rather
+        than in one batch at the end, so a studio that is killed mid-call still
+        leaves the call on disk up to the moment it died.
+        """
+        store = self._server.sessions
         async for event in session.subscribe():
-            self._link.send_json({"type": "event", "event": event.model_dump(mode="json")})
+            payload = event.model_dump(mode="json")
+            self._link.send_json({"type": "event", "event": payload})
+            try:
+                await store.append(session.session_id, payload)
+            except (OSError, ValueError):
+                logger.warning(
+                    "studio could not append to session %s", session.session_id, exc_info=True
+                )
 
     def _count_bot_audio(self, frame: AudioFrame) -> None:
-        """Count bot audio instead of shipping it (protocol doc, "WebSocket /ws").
+        """Count bot audio, and in microphone mode ship it too.
+
+        Text mode keeps the v0.3 behaviour exactly: the byte counter feeds the
+        UI's speech meter and no PCM crosses the socket. Microphone mode sends
+        the frame as well, preceded by one ``audio_format`` message whenever
+        the runtime's format changes, because the browser needs a sample rate
+        before it can play anything and providers do not all emit 16 kHz.
 
         Synchronous because ``RuntimeAdapter.on_bot_audio`` is called, not
-        awaited; the send is a buffered write, so there is nothing to await.
+        awaited; the sends are buffered writes, so there is nothing to await.
         """
         self._audio_bytes += len(frame.pcm)
+        if self._audio_mode and frame.pcm:
+            fmt = (frame.sample_rate, frame.channels)
+            if fmt != self._announced_format:
+                self._announced_format = fmt
+                self._link.send_json(
+                    {
+                        "type": "audio_format",
+                        "sample_rate": frame.sample_rate,
+                        "channels": frame.channels,
+                        "encoding": "pcm_s16le",
+                    }
+                )
+            self._link.send_bytes(frame.pcm)
         now = time.monotonic()
         if now - self._last_progress < _AUDIO_PROGRESS_INTERVAL:
             return
@@ -719,6 +937,8 @@ class StudioServer:
             :attr:`port` once :meth:`start` has returned.
         static_dir: where the built frontend lives. Overridable so a Vite build
             directory can be served directly during UI work.
+        sessions_dir: where session history is written. Defaults to
+            ``~/.tring/studio/sessions``; tests point it somewhere temporary.
     """
 
     def __init__(
@@ -727,6 +947,7 @@ class StudioServer:
         host: str = DEFAULT_HOST,
         port: int = DEFAULT_PORT,
         static_dir: str | Path | None = None,
+        sessions_dir: str | Path | None = None,
     ) -> None:
         self.agent_path = Path(agent_path).expanduser().resolve()
         self.host = host
@@ -734,6 +955,7 @@ class StudioServer:
         self.static_dir = (
             Path(static_dir).expanduser().resolve() if static_dir else DEFAULT_STATIC_DIR
         )
+        self.sessions = SessionStore(sessions_dir)
         self._server: asyncio.Server | None = None
         self._connections: set[asyncio.Task[Any]] = set()
         self._writers: set[StreamWriter] = set()
@@ -854,6 +1076,58 @@ class StudioServer:
             return {"ok": False, "error": f"could not write {self.agent_path}: {exc}"}
         return {"ok": True}
 
+    def compile_flow_request(self, body: bytes) -> dict[str, Any]:
+        """Compile a ``POST /api/flow/compile`` body. Never writes anything.
+
+        The saved spec is the base, so a compile inherits the provider routing,
+        language policy and limits the user has already set, and the flow only
+        supplies what a flow knows: the numbered steps, the tools its nodes
+        carry, and the graph itself. Saving is a separate, deliberate
+        ``POST /api/agent`` with the returned text, because compiling to see
+        what a flow says is not the same act as replacing your agent with it.
+
+        A saved spec that will not load does not block the compile: the flow
+        still compiles against no base and the response carries a ``note``
+        saying what was skipped. The alternative, refusing to compile until an
+        unrelated file is fixed, helps nobody.
+        """
+        try:
+            envelope = json.loads(body)
+        except json.JSONDecodeError:
+            return {"ok": False, "error": "request body was not valid JSON"}
+        if not isinstance(envelope, dict) or not isinstance(envelope.get("flow"), dict):
+            return {"ok": False, "error": 'expected a JSON object with a "flow" object field'}
+
+        try:
+            graph = FlowGraph.model_validate(envelope["flow"])
+        except ValidationError as exc:
+            return {"ok": False, "error": _describe_validation_error(exc)}
+
+        note: str | None = None
+        try:
+            base: AgentSpec | None = self.load_agent_spec()
+        except (OSError, yaml.YAMLError, ValidationError) as exc:
+            base = None
+            note = (
+                f"compiled without the saved agent spec, which could not be loaded "
+                f"({_collapse(str(exc))}). Provider routing and limits are defaults."
+            )
+
+        try:
+            spec = compile_flow(graph, base)
+        except FlowError as exc:
+            return {"ok": False, "error": str(exc)}
+
+        # JSON, which is YAML, for the same reason the demo spec is JSON: the
+        # frontend opens its structured editor on anything it can JSON.parse.
+        result: dict[str, Any] = {
+            "ok": True,
+            "yaml": json.dumps(spec.model_dump(mode="json"), indent=2),
+        }
+        if note is not None:
+            result["note"] = note
+        return result
+
     def meta(self) -> dict[str, Any]:
         """Registry contents for the editor's provider dropdowns."""
         registry._load_builtin()
@@ -922,14 +1196,25 @@ class StudioServer:
                 return _json_response(self.meta())
             if request.path == "/api/agent":
                 return _json_response({"yaml": self.agent_yaml()})
+            if request.path == "/api/sessions":
+                return _json_response(self.sessions.summaries())
+            if request.path.startswith(_SESSION_PREFIX):
+                record = self.sessions.read(request.path[len(_SESSION_PREFIX) :])
+                if record is None:
+                    return _text_response(HTTPStatus.NOT_FOUND, "no such session\n")
+                return _json_response(record)
             return self._static(request.path)
         if request.method == "POST":
-            if request.path != "/api/agent":
-                return _text_response(HTTPStatus.NOT_FOUND, "not found\n")
             body = await _read_body(reader, request)
-            if body is None:
-                return _text_response(HTTPStatus.BAD_REQUEST, "unreadable request body\n")
-            return _json_response(self.save_agent_yaml(body))
+            if request.path == "/api/agent":
+                if body is None:
+                    return _text_response(HTTPStatus.BAD_REQUEST, "unreadable request body\n")
+                return _json_response(self.save_agent_yaml(body))
+            if request.path == "/api/flow/compile":
+                if body is None:
+                    return _text_response(HTTPStatus.BAD_REQUEST, "unreadable request body\n")
+                return _json_response(self.compile_flow_request(body))
+            return _text_response(HTTPStatus.NOT_FOUND, "not found\n")
         return _text_response(HTTPStatus.METHOD_NOT_ALLOWED, "method not allowed\n")
 
     def _static(self, path: str) -> _Response:
@@ -999,6 +1284,9 @@ class StudioServer:
     <li><code>GET /api/meta</code> &mdash; version and registered providers</li>
     <li><code>GET /api/agent</code> &mdash; the current agent spec as YAML</li>
     <li><code>POST /api/agent</code> &mdash; validate and save a spec</li>
+    <li><code>GET /api/sessions</code> &mdash; past sessions, newest first</li>
+    <li><code>GET /api/sessions/{{id}}</code> &mdash; one session's events</li>
+    <li><code>POST /api/flow/compile</code> &mdash; compile a flow graph to a spec</li>
     <li><code>ws://&hellip;/ws</code> &mdash; the live session socket</li>
   </ul>
 </main>
