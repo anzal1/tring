@@ -132,6 +132,31 @@ class CostRecorded(BaseEvent):
     cached_units: float | None = None  # e.g. cached prompt tokens, when reported
 
 
+
+class DtmfReceived(BaseEvent):
+    """A DTMF keypad digit arrived from the telephony transport."""
+
+    type: Literal["dtmf_received"] = "dtmf_received"
+    digit: str
+
+
+class SessionTransferred(BaseEvent):
+    """The call was handed to a human or another destination."""
+
+    type: Literal["session_transferred"] = "session_transferred"
+    target: str
+
+
+class KnowledgeSearched(BaseEvent):
+    """One knowledge-base retrieval, speculative or on demand."""
+
+    type: Literal["knowledge_searched"] = "knowledge_searched"
+    query: str
+    result_count: int
+    latency_seconds: float
+    speculative: bool = False
+
+
 class SessionError(BaseEvent):
     type: Literal["error"] = "error"
     message: str
@@ -148,6 +173,9 @@ SessionEvent = Annotated[
     | ToolCallStarted
     | ToolCallCompleted
     | CostRecorded
+    | DtmfReceived
+    | SessionTransferred
+    | KnowledgeSearched
     | SessionError,
     Field(discriminator="type"),
 ]

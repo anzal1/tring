@@ -11,7 +11,7 @@ import contextlib
 from collections.abc import Callable
 from typing import Any, Literal
 
-Kind = Literal["stt", "llm", "tts", "s2s"]
+Kind = Literal["stt", "llm", "tts", "s2s", "knowledge"]
 
 _REGISTRY: dict[tuple[Kind, str], Callable[..., Any]] = {}
 

@@ -88,6 +88,22 @@ class ToolDef(BaseModel):
     choreographed: bool = True
 
 
+
+class KnowledgeConfig(BaseModel):
+    """Optional knowledge-base binding for an agent.
+
+    ``provider`` names a registered knowledge provider; ``options`` go to its
+    factory (chroma path, qdrant url, ...). ``speculative`` opts into
+    retrieval kicked off from partial transcripts, so results are ready
+    before the caller finishes the sentence.
+    """
+
+    provider: str
+    options: dict[str, Any] = Field(default_factory=dict)
+    top_k: int = 4
+    speculative: bool = True
+
+
 class Limits(BaseModel):
     max_duration_seconds: float | None = 600.0
     max_cost: float | None = None
@@ -103,6 +119,7 @@ class AgentSpec(BaseModel):
     language: LanguagePolicy = Field(default_factory=LanguagePolicy)
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
     tools: list[ToolDef] = Field(default_factory=list)
+    knowledge: KnowledgeConfig | None = None
     limits: Limits = Field(default_factory=Limits)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
