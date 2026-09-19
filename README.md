@@ -23,7 +23,7 @@ pip install tring
 
 <p align="center"><em>Live inference, real costs — <a href="https://github.com/anzal1/tring/releases/download/v0.4.0/tring-demo.mp4">watch the full demo with narration</a></em></p>
 
-Built from lessons learned running voice agents across hundreds of thousands of production telephony calls, in multiple languages, where callers code-switch mid-sentence and two seconds of silence means a hangup.
+Built from lessons learned running voice agents across more than a million production telephony calls, in multiple languages, where callers code-switch mid-sentence and two seconds of silence means a hangup.
 
 ---
 
