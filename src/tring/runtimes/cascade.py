@@ -574,7 +574,15 @@ class CascadeRuntime(RuntimeAdapter):
 
         try:
             messages = self._lock.apply(self._messages, self.language)
-            async for chunk in self._llm.generate(messages, self._tool_schemas or None):
+            # tools=None on purpose: the envelope IS the tool channel. Schemas
+            # are already rendered into the system prompt, and the model emits
+            # tool calls as ordinary text for the speak-parser. Passing our
+            # bare schema dicts through a provider's native `tools` parameter
+            # is rejected by every vendor (each expects its own wrapper shape,
+            # verified live against Groq and Gemini on 2026-09-18), and even
+            # where it worked it would race a second, unparsed tool channel
+            # against the envelope.
+            async for chunk in self._llm.generate(messages, None):
                 self._record_usage(CostComponent.LLM, self._llm_name, chunk.usage)
                 for event in parser.feed(chunk.text):
                     tool_call = self._apply_parser_event(event, speech) or tool_call

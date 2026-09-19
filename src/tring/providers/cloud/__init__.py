@@ -237,13 +237,16 @@ class OpenAICompatibleLLM(LLMProvider):
 
     def __init__(
         self,
-        base_url: str,
-        model: str,
-        api_key_env: str | None = None,
+        base_url: str = "https://api.openai.com/v1",
+        model: str = "gpt-4o-mini",
+        api_key_env: str | None = "OPENAI_API_KEY",
         *,
         transport: httpx.AsyncBaseTransport | None = None,
         **_: Any,
     ) -> None:
+        # Defaults target OpenAI itself so `llm: openai_compatible` works with
+        # zero options; any compatible vendor (Groq, Together, vLLM, ...) is a
+        # base_url + api_key_env override away (docs/PROVIDER_ALIASES.md).
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._api_key_env = api_key_env

@@ -461,9 +461,12 @@ async def test_openai_compatible_llm_without_api_key_env_omits_auth_header() -> 
         captured["headers"] = dict(request.headers)
         return httpx.Response(200, content=b"data: [DONE]\n\n")
 
+    # api_key_env=None is the explicit "no auth header" contract; the
+    # constructor's DEFAULT is now OPENAI_API_KEY for zero-config OpenAI use.
     llm = OpenAICompatibleLLM(
         base_url="https://example.test/v1",
         model="test-model",
+        api_key_env=None,
         transport=httpx.MockTransport(handler),
     )
     async for _ in llm.generate([{"role": "user", "content": "hi"}]):

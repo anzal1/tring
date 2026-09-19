@@ -424,6 +424,36 @@ class OpenAISTT(STTProvider):
 # Sarvam AI -- batch REST, Indian languages
 # ---------------------------------------------------------------------------
 
+# The endpoint accepts ONLY these language_code values (plus "unknown"); a bare
+# ISO-639 code like "en" is a 400 invalid_request_error, discovered live on
+# 2026-09-18 and confirmed against the enum at
+# https://docs.sarvam.ai/api-reference-docs/speech-to-text/transcribe.
+_SARVAM_LANGUAGE_CODES = frozenset(
+    {
+        "unknown", "hi-IN", "bn-IN", "kn-IN", "ml-IN", "mr-IN", "od-IN", "pa-IN",
+        "ta-IN", "te-IN", "en-IN", "gu-IN", "as-IN", "ur-IN", "ne-IN", "kok-IN",
+        "ks-IN", "sd-IN", "sa-IN", "sat-IN", "mni-IN", "brx-IN", "mai-IN", "doi-IN",
+    }
+)
+
+
+def _sarvam_language(code: str | None) -> str | None:
+    """Normalize a caller-supplied language to Sarvam's accepted enum.
+
+    Users routing per-language pass bare ISO codes ("en", "hi", "mr"); Sarvam
+    only accepts its "-IN" variants. Exact matches pass through, bare codes
+    get the "-IN" suffix when that lands in the enum, and anything else
+    becomes "unknown" (auto-detect) rather than a guaranteed 400.
+    """
+    if code is None:
+        return None
+    if code in _SARVAM_LANGUAGE_CODES:
+        return code
+    suffixed = f"{code}-IN"
+    if suffixed in _SARVAM_LANGUAGE_CODES:
+        return suffixed
+    return "unknown"
+
 
 @register("stt", "sarvam")
 class SarvamSTT(STTProvider):
@@ -491,7 +521,7 @@ class SarvamSTT(STTProvider):
     ) -> STTResult | None:
         api_key = _api_key(self._api_key_env, "SarvamSTT")
         wav_bytes = _pcm_to_wav_bytes(pcm, sample_rate, channels)
-        lang = language or self._language_code
+        lang = _sarvam_language(language or self._language_code)
         data: dict[str, str] = {"model": self._model}
         if lang:
             data["language_code"] = lang
