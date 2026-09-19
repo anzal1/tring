@@ -201,9 +201,18 @@ class SessionStore:
         intact rather than a truncated one: the listing is a cache of what the
         ``.jsonl`` files already say, and a half-written cache is worse than a
         slightly stale one.
+
+        The disk-truth rule is enforced here, incoming summary included. A
+        session whose recording was deleted while its socket was still open
+        arrives at ``finish`` with a summary and no file; indexing it would
+        resurrect a session the developer already threw away, as a row whose
+        replay can only 404. The same filter garbage-collects any stale
+        entries an external prune left behind, so this rewrite merges with
+        what is on disk rather than clobbering it with remembered state.
         """
         entries = [entry for entry in self._read_index() if entry.get("id") != summary["id"]]
         entries.insert(0, dict(summary))
+        entries = self._existing_only(entries)
         del entries[MAX_INDEX_ENTRIES:]
         self.root.mkdir(parents=True, exist_ok=True)
         target = self.root / INDEX_NAME
@@ -214,8 +223,33 @@ class SessionStore:
     # ------------------------------------------------------------- reading
 
     def summaries(self) -> list[dict[str, Any]]:
-        """Every indexed session, newest first. The body of ``GET /api/sessions``."""
-        return self._read_index()
+        """Every indexed session, newest first. The body of ``GET /api/sessions``.
+
+        Filtered against the files actually on disk, because the index is a
+        cache and the ``.jsonl`` recordings are the truth: a developer who
+        deletes a recording between index rewrites must not be shown a row
+        whose replay 404s. Read-only on purpose; the stale entries themselves
+        are garbage-collected by the next index rewrite, not by a GET.
+        """
+        return self._existing_only(self._read_index())
+
+    def _existing_only(self, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Drop entries whose recording no longer exists (or never could).
+
+        An id that fails :data:`_SAFE_ID` is dropped too: it cannot name a
+        file this store would have written, so whatever put it in the index,
+        it has no recording to stand on.
+        """
+        kept: list[dict[str, Any]] = []
+        for entry in entries:
+            session_id = entry.get("id")
+            if (
+                isinstance(session_id, str)
+                and _SAFE_ID.match(session_id)
+                and (self.root / f"{session_id}.jsonl").exists()
+            ):
+                kept.append(entry)
+        return kept
 
     def read(self, session_id: str) -> dict[str, Any] | None:
         """One session: its summary fields plus every event, in order.

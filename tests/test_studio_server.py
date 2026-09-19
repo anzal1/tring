@@ -47,6 +47,7 @@ from tring.providers.registry import register
 from tring.runtimes.base import AudioFrame
 from tring.studio.server import DEMO_AGENT, StudioServer
 from tring.studio.silent_tts import SILENT_TTS_NAME
+from tring.studio.store import INDEX_NAME, SessionStore
 
 # ---------------------------------------------------------------------------
 # Fake providers, registered in the real registry so specs resolve them
@@ -947,3 +948,68 @@ async def test_a_mode_message_without_a_boolean_is_reported_not_fatal(
 
     assert complaint["type"] == "error" and "audio" in complaint["message"]
     assert ready["type"] == "ready"
+
+
+# ---------------------------------------------------------------------------
+# v0.4.x: the index is a cache; the .jsonl recordings are the truth
+# ---------------------------------------------------------------------------
+#
+# Both regressions below were found live: an operator pruned the sessions
+# directory while the studio was running, and rows kept coming back. The rule
+# these tests pin down: an index rewrite merges with what is on disk, and a
+# session whose recording is gone is gone.
+
+
+def _event(kind: str, **fields: Any) -> dict[str, Any]:
+    return {"type": kind, "session_id": "s", "at": 0.0, **fields}
+
+
+async def _run_session(store: SessionStore, session_id: str) -> None:
+    """One minimal indexed session: started -> a turn -> finished."""
+    await store.append(session_id, _event("session_started", agent_name="demo"))
+    await store.append(session_id, _event("user_transcript", text="hi", final=True))
+    await store.finish(session_id)
+
+
+async def test_an_external_prune_survives_a_subsequent_session_end(tmp_path: Path) -> None:
+    store = SessionStore(tmp_path / "sessions")
+    await _run_session(store, "victim")
+    assert [entry["id"] for entry in store.summaries()] == ["victim"]
+
+    # The operator throws the recording away between sessions: file and entry.
+    (store.root / "victim.jsonl").unlink()
+    (store.root / INDEX_NAME).write_text(json.dumps({"sessions": []}), encoding="utf-8")
+
+    # The next session end rewrites the index. Merging with disk means the
+    # prune holds; remembering in-memory state would resurrect the victim.
+    await _run_session(store, "survivor")
+    assert [entry["id"] for entry in store.summaries()] == ["survivor"]
+
+
+async def test_a_deleted_recording_never_reappears_in_the_index(tmp_path: Path) -> None:
+    store = SessionStore(tmp_path / "sessions")
+    await _run_session(store, "keeper")
+    await _run_session(store, "doomed")
+
+    # Delete only the recording and leave the index stale: the listing must
+    # already stop showing it, read-only, before anything rewrites the index.
+    (store.root / "doomed.jsonl").unlink()
+    assert [entry["id"] for entry in store.summaries()] == ["keeper"]
+
+    # The next rewrite garbage-collects the stale entry from the file itself.
+    await _run_session(store, "later")
+    on_disk = json.loads((store.root / INDEX_NAME).read_text(encoding="utf-8"))
+    assert [entry["id"] for entry in on_disk["sessions"]] == ["later", "keeper"]
+
+
+async def test_a_late_finish_cannot_resurrect_a_pruned_live_session(tmp_path: Path) -> None:
+    # The live-observed ghost: a session's socket outlives an external prune,
+    # and its eventual teardown tries to index a recording that is gone.
+    store = SessionStore(tmp_path / "sessions")
+    await store.append("lingering", _event("session_started", agent_name="demo"))
+
+    (store.root / "lingering.jsonl").unlink()
+
+    summary = await store.finish("lingering")
+    assert summary is not None  # the teardown path still gets its summary back
+    assert store.summaries() == []  # but the listing keeps to what disk can replay
