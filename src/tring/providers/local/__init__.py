@@ -599,6 +599,10 @@ __all__ = [
     "TextInputSTT",
 ]
 
+# Registers FasterWhisperStreamingSTT ("stt","faster_whisper_streaming"); see
+# that module's docstring for how it builds a tring.vad detector.
+from tring.providers.local import stt_streaming as _stt_streaming  # noqa: F401,E402
+
 # Registers PiperTTS ("tts","piper"); see that module's docstring for
 # API/usage verification sources.
 from tring.providers.local import tts_extra as _tts_extra  # noqa: F401,E402

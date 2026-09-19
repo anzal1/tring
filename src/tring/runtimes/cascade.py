@@ -83,7 +83,7 @@ from tring.primitives.choreography import (
     execute,
     parse_choreographed_call,
 )
-from tring.primitives.interruption import PlaybackLedger
+from tring.primitives.interruption import InterruptionVerdict, PlaybackLedger
 from tring.primitives.language_lock import LanguageLock
 from tring.primitives.speak_parser import (
     FallbackText,
@@ -95,7 +95,9 @@ from tring.primitives.speak_parser import (
 from tring.providers import registry
 from tring.providers.base import LLMProvider, STTProvider, TTSProvider, Usage
 from tring.runtimes.base import AudioFrame, RuntimeAdapter, RuntimeCapabilities
+from tring.runtimes.turn_taking import TurnTaker, concat_frames
 from tring.session import CallSession
+from tring.vad import VoiceActivityDetector
 
 #: The output contract every cascade turn is generated against.
 #:
@@ -282,6 +284,25 @@ class CascadeRuntime(RuntimeAdapter):
             so the cost ledger is correct even on a call that ends mid-turn.
         language: language to route providers and the language lock with.
             Defaults to the agent's primary language.
+        vad: optional :class:`~tring.vad.VoiceActivityDetector`. ``None`` (the
+            default) keeps the old behaviour: barge-in is adjudicated only
+            once a full caller utterance has come back as a *final*
+            ``STTResult``, so the bot keeps talking for however long the STT
+            provider takes to recognise it was cut off. Passing a VAD hands
+            caller audio to a :class:`~tring.runtimes.turn_taking.TurnTaker`
+            first: it segments utterances itself (feed the STT provider's own
+            endpointer disabled, e.g. ``silence_seconds=0`` for
+            ``FasterWhisperSTT``, or it will re-cut audio already cut) and
+            fires ``on_interrupt`` the instant speech starts, which is what
+            makes barge-in cut the bot off *while the caller is still
+            talking* instead of after they finish. The eventual final
+            transcript still runs the old ``caller_started_speaking()`` call
+            in :meth:`_begin_turn`; by then the ledger has already retired
+            the utterance the VAD adjudicated, so that second call is a
+            harmless no-op that reports ordinary turn-taking rather than a
+            second interruption (see ``PlaybackLedger.caller_started_speaking``
+            and the "Adopting it in a cascade runtime" note on
+            :class:`~tring.runtimes.turn_taking.TurnTaker`).
 
     Bot audio is delivered through ``on_bot_audio``, set by the transport.
     """
@@ -292,6 +313,7 @@ class CascadeRuntime(RuntimeAdapter):
         handlers: dict[str, Callable[[dict[str, Any]], Awaitable[Any]]] | None = None,
         meter: CostMeter | None = None,
         language: str | None = None,
+        vad: VoiceActivityDetector | None = None,
     ) -> None:
         super().__init__(session)
         self.handlers = dict(handlers or {})
@@ -302,6 +324,19 @@ class CascadeRuntime(RuntimeAdapter):
         #: Public so a transport with a real playout clock can drive
         #: ``mark_played`` itself instead of relying on this runtime's estimate.
         self.ledger = PlaybackLedger(session)
+
+        #: ``None`` unless ``vad`` was supplied; see the class docstring.
+        #: Ownership of caller-audio segmentation moves to it wholesale so
+        #: there is exactly one endpointer per call, never the VAD's and the
+        #: STT provider's both racing to decide where an utterance ends.
+        self._turn_taker: TurnTaker | None = None
+        if vad is not None:
+            self._turn_taker = TurnTaker(
+                vad=vad,
+                ledger=self.ledger,
+                on_utterance=self._deliver_vad_utterance,
+                on_interrupt=self._on_vad_interrupt,
+            )
 
         self._lock = LanguageLock(session.agent.language)
         self._tools: dict[str, ToolDef] = {t.name: t for t in session.agent.tools}
@@ -368,10 +403,48 @@ class CascadeRuntime(RuntimeAdapter):
             await self._speak_text(agent.greeting)
 
     async def push_audio(self, frame: AudioFrame) -> None:
-        """Feed caller audio in. Never blocks: the queue absorbs the jitter."""
+        """Feed caller audio in.
+
+        With no VAD this only queues the frame, and never blocks: the queue
+        absorbs the jitter. With a VAD the frame is routed through the
+        :class:`~tring.runtimes.turn_taking.TurnTaker` instead, which does its
+        own buffering (pre-roll while idle, the in-progress utterance while
+        speaking) and only reaches the queue once a whole utterance is ready;
+        that buffering can itself await, unlike the plain queue path.
+        """
         if self._stopped:
             return
-        self._frames.put_nowait(frame)
+        if self._turn_taker is not None:
+            await self._turn_taker.push(frame)
+        else:
+            self._frames.put_nowait(frame)
+
+    async def _deliver_vad_utterance(self, frames: list[AudioFrame]) -> None:
+        """``TurnTaker.on_utterance``: hand one segmented utterance to STT.
+
+        Joined into a single frame because the STT provider still reads a
+        plain frame queue; the join is where a stream of raw mic frames turns
+        into a stream of pre-segmented utterances without changing anything
+        downstream of ``_audio_frames``.
+        """
+        frame = concat_frames(frames)
+        if frame is not None:
+            self._frames.put_nowait(frame)
+
+    async def _on_vad_interrupt(self, verdict: InterruptionVerdict) -> None:
+        """``TurnTaker.on_interrupt``: cut the bot off the instant speech starts.
+
+        This is the entire point of wiring a VAD in: without it, the earliest
+        anything can react to a barge-in is ``_begin_turn``, which only runs
+        once the STT provider has finished recognising a *final* transcript.
+        The VAD's ``SPEECH_START`` fires as soon as the caller opens their
+        mouth, so the annotation this produces is already in ``_messages`` by
+        the time that final transcript arrives and calls
+        ``caller_started_speaking()`` again on an already-retired utterance.
+        """
+        await self._cancel_turn()
+        if verdict.context_annotation:
+            self._messages.append({"role": "system", "content": verdict.context_annotation})
 
     async def stop(self, reason: str = "completed") -> None:
         """Cancel in-flight work and emit ``SessionEnded``. Idempotent."""
@@ -380,6 +453,10 @@ class CascadeRuntime(RuntimeAdapter):
         self._stopped = True
 
         await self._cancel_turn()
+        if self._turn_taker is not None:
+            # A caller cut off mid-word still said something; flush delivers
+            # whatever the VAD had open instead of dropping it on the floor.
+            await self._turn_taker.flush()
         self._frames.put_nowait(None)  # let the STT stream end, not abort
         if self._stt_task is not None:
             with suppress(asyncio.CancelledError):

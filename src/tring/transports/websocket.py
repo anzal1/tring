@@ -27,7 +27,7 @@ import contextlib
 import json
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from tring.runtimes.base import AudioFrame
 from tring.session import CallSession
@@ -67,7 +67,10 @@ async def serve(
             "Install tring[transports] to enable WebSocket support."
         ) from e
 
-    async def handle_connection(websocket: websockets.WebSocketServerProtocol) -> None:
+    # Typed as Any: the concrete connection class moved between websockets
+    # major versions (WebSocketServerProtocol -> ServerConnection), and naming
+    # either couples this lazy-import module to one of them at type time.
+    async def handle_connection(websocket: Any) -> None:
         """Handle one WebSocket connection: run a full voice session.
 
         Args:

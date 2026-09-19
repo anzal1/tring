@@ -15,6 +15,7 @@ Converts audio to text. Input: 16 kHz mono PCM frames. Output: incrementally str
 | Provider | Vendor | Key Env Var | Notable Options | Usage Exactness |
 |---|---|---|---|---|
 | `faster_whisper` | OpenAI Whisper (run locally) | (none) | `model` (default: "base"), `device` ("auto", "cpu", "cuda"), `silence_threshold`, `silence_seconds` | Exact: audio_seconds from byte count |
+| `faster_whisper_streaming` | OpenAI Whisper (run locally, true streaming) | (none) | `model` (default: "base"), `device` ("auto", "cpu", "cuda"), `silence_threshold`, `silence_seconds` | Exact: audio_seconds from byte count |
 | `text_input` | (dev/test) | (none) | (accepts and ignores all options) | No usage reported |
 
 ### Cloud Providers

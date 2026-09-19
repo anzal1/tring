@@ -32,6 +32,7 @@ Built from lessons learned running voice agents across hundreds of thousands of 
 - [Choosing a runtime](#choosing-a-runtime)
 - [Providers](#providers)
 - [The cost engine](#the-cost-engine)
+- [Tring Studio](#tring-studio)
 - [Build on top of Tring](#build-on-top-of-tring)
 - [Project layout](#project-layout)
 - [Roadmap and contributing](#roadmap-and-contributing)
@@ -125,8 +126,9 @@ flowchart LR
     S --> REG
     H --> REG
 
-    REG --> LOC["local: faster-whisper,<br/>ollama, kokoro"]
+    REG --> LOC["local: faster-whisper,<br/>faster-whisper-streaming, ollama, kokoro"]
     REG --> CLD["cloud: deepgram,<br/>elevenlabs, openai-compatible"]
+    REG --> VAD["VAD: silero<br/>(turn-taking)"]
 
     C -.emits.-> EV[(SessionEvent stream)]
     S -.emits.-> EV
@@ -134,7 +136,7 @@ flowchart LR
 
     EV --> CM[CostMeter]
     EV --> AN[your analytics]
-    EV --> TR["transports:<br/>console, websocket"]
+    EV --> TR["transports:<br/>console, websocket, twilio"]
 ```
 
 ### Anatomy of one choreographed turn
@@ -194,6 +196,12 @@ Each is an independent, framework-free module under [`tring/primitives/`](src/tr
 
 Each runtime declares these as [`RuntimeCapabilities`](src/tring/runtimes/base.py); consumers query them instead of assuming. When an architecture has no mid-call transcripts, Tring says so in the event stream (`availability: post_call`) rather than pretending.
 
+**Streaming STT:** Use `faster_whisper_streaming` for true incremental transcription (character by character) instead of buffered phrases. Starts the LLM turn before the caller finishes, saving hundreds of milliseconds of perceived latency.
+
+**VAD turn-taking:** Pair cascade with Silero VAD (local, vendor-free) for natural turn-taking. The runtime stops listening and starts speaking when the caller falls silent, with configurable sensitivity.
+
+**Twilio ingress:** The `twilio` transport bridges Twilio media streams with exact playout marks for perfect interruption reconciliation. Use `runtime.ledger.mark_played()` to upgrade heard/unheard splits from estimated to exact.
+
 The triangle is real: **latency, control, voice ownership. Pick two.** Cascade maximizes control, S2S minimizes latency, hybrid buys voice ownership at a premium. Tring's job is making the choice reversible.
 
 ---
@@ -251,6 +259,21 @@ denominator_ladder(
 ```
 
 Rate optimization moves the top line by percents. Conversation quality moves the bottom line by multiples. The ladder makes that visible.
+
+---
+
+## Tring Studio
+
+A single-page web app for interactive agent development and testing. Define your agent once in YAML, and test it immediately in the browser without audio hardware or model downloads. The same event stream and cost metering runs live, so you see the exact choreography and price your production calls will pay.
+
+```bash
+pip install "tring[transports]"
+python -m tring.studio
+```
+
+Opens at `http://localhost:8900`. Load an agent spec, type test turns, watch live transcripts, tool calls, and cost lines. Swap your agent's providers and routing rules, save, and test again. No restart needed.
+
+<!-- TODO: screenshot -->
 
 ---
 
@@ -323,7 +346,7 @@ An observability product for voice agents is one `subscribe()` loop away.
 
 ### 4. Bring your own transport (telephony, WebRTC, apps)
 
-A transport is anything that moves 16kHz mono PCM in and out. The websocket server shows the pattern in about a hundred lines; a SIP/FreeSWITCH bridge, a Twilio media-streams adapter, a WebRTC gateway, or a native app all plug in the same way:
+A transport is anything that moves 16kHz mono PCM in and out. The websocket server shows the pattern in about a hundred lines; a SIP/FreeSWITCH bridge, a Twilio media-streams adapter, a WebRTC gateway, or a native app all plug in the same way. Tring ships a Twilio transport for MediaStreams with playout-aware interruption tracking:
 
 ```python
 from tring.transports.websocket import serve
