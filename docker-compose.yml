@@ -1,0 +1,31 @@
+# The two-command onboarding:  docker compose up  ->  http://localhost:8900
+#
+# Studio starts with zero keys: typed testing works against any LLM you give
+# it. Uncomment the ollama service for a fully local, zero-key setup, then
+# set your agent's llm to "ollama" with options {base_url: http://ollama:11434}.
+services:
+  studio:
+    build: .
+    ports:
+      - "8900:8900"
+    volumes:
+      - tring-data:/data
+    environment:
+      # Provider keys, by NAME, straight through to the container. Set the
+      # ones your agent's routing actually uses; leave the rest unset.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+
+  # ollama:
+  #   image: ollama/ollama
+  #   volumes:
+  #     - ollama:/root/.ollama
+  #   ports:
+  #     - "11434:11434"
+
+volumes:
+  tring-data:
+  # ollama:

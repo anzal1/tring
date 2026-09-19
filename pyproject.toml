@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tring"
-version = "0.4.0"
+version = "0.4.1"
 description = "Open-source voice agent stack: one agent contract, any runtime (cascade / speech-to-speech / hybrid), local-first, cost-transparent."
 readme = "README.md"
 license = "MIT"
@@ -42,6 +42,9 @@ dev = [
   "mypy>=1.10",
   "types-PyYAML",
 ]
+
+[project.scripts]
+tring = "tring.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/anzal1/tring"

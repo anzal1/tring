@@ -266,16 +266,20 @@ Rate optimization moves the top line by percents. Conversation quality moves the
 
 ## Tring Studio
 
-A single-page web app for interactive agent development and testing. Define your agent once in YAML, and test it immediately in the browser without audio hardware or model downloads. The same event stream and cost metering runs live, so you see the exact choreography and price your production calls will pay.
+The workbench: design, test, and debug agents in the browser, no audio hardware or model downloads required. The same event stream and cost metering runs live, so you see the exact choreography and price your production calls will pay.
 
 ```bash
 pip install "tring[transports]"
-python -m tring.studio
+tring studio
 ```
 
-Opens at `http://localhost:8900`. Load an agent spec, type test turns, watch live transcripts, tool calls, and cost lines. Swap your agent's providers and routing rules, save, and test again. No restart needed.
+Opens at `http://localhost:8900` ([watch the demo](https://github.com/anzal1/tring/releases/download/v0.4.0/tring-demo.mp4)):
 
-<!-- TODO: screenshot -->
+- **Build**: the agent designer (form or raw YAML), a live test console with typed turns or **push-to-talk from your microphone**, tool-call cards showing the choreographed waiting messages, and live cost lines with the estimated-fraction honesty chip.
+- **Flow**: draw conversation flows on a canvas (say / ask / branch / tool / handoff / end) and compile them into numbered, transition-explicit agent instructions. The graph round-trips losslessly in the spec's metadata, and nothing saves without your explicit action.
+- **Sessions**: every call persists as its event stream; scrub any past conversation through the same panels you use live, tool calls and costs included.
+
+Declared tools get studio mock handlers automatically, so you can test conversation logic with zero backend code. Deployment options, containers included, are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
