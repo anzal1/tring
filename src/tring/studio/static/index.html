@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tring studio</title>
+<style>
+/* ------------------------------------------------------------------ tokens
+   Chrome is neutral; color belongs to data. One restrained accent for brand
+   moments only. Series colors validated (6/6 checks) on --surface. */
+:root {
+  color-scheme: dark;
+  --page:      #0f0f0f;
+  --surface:   #141414;
+  --raised:    #1a1a1a;
+  --raised-2:  #202020;
+  --hairline:  rgba(255, 255, 255, 0.07);
+  --hairline-2:rgba(255, 255, 255, 0.12);
+  --ink:       #ededed;
+  --ink-2:     #9a9a9a;
+  --ink-3:     #6b6b6b;
+  --accent:    #c9962e;   /* brand amber, desaturated; used sparingly */
+  --good:      #46a758;
+  --critical:  #d4544f;
+  --warning:   #c9962e;
+  /* categorical series: validator 6/6 PASS on #141414 (2026-09-19) */
+  --s1: #4b7fc9;  /* stt */
+  --s2: #c96a3f;  /* llm */
+  --s3: #2f9a72;  /* tts */
+  --s4: #bd8a2a;  /* other */
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* motion: crisp and fast; ease-out only (emil), exact values (better-ui) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--hairline-2); outline-offset: 1px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation: none !important; }
+}
+
+/* ------------------------------------------------------------------ layout */
+header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+header .logo { font-weight: 600; font-size: 13.5px; letter-spacing: -0.01em; }
+header .logo .bell { margin-right: 7px; opacity: 0.9; }
+header .logo .studio { color: var(--ink-3); font-weight: 400; margin-left: 1px; }
+#agent-name { color: var(--ink-3); font-family: var(--mono); font-size: 11.5px; }
+#conn {
+  margin-left: auto; display: flex; align-items: center; gap: 7px;
+  color: var(--ink-3); font-size: 12px;
+}
+#conn .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ink-3);
+  transition: background-color 150ms ease;
+}
+#conn.live .dot { background: var(--good); }
+#conn.live { color: var(--ink-2); }
+#conn.err .dot { background: var(--critical); }
+
+main {
+  display: grid;
+  grid-template-columns: minmax(320px, 370px) minmax(380px, 1fr) minmax(300px, 350px);
+  gap: 12px;
+  padding: 12px 20px 20px;
+  height: calc(100vh - 45px);
+}
+/* shadows carry elevation; borders only where they mean structure */
+.panel {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex; flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.panel > h2 {
+  margin: 0; padding: 12px 16px 11px;
+  font-size: 10.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--hairline);  /* structural divider: a border */
+  display: flex; align-items: center; gap: 8px;
+}
+.col { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.scroll { overflow-y: auto; min-height: 0; }
+.scroll { scrollbar-width: thin; scrollbar-color: var(--raised-2) transparent; }
+
+/* --------------------------------------------------------------- designer */
+.tabs { display: flex; gap: 2px; margin-left: auto; }
+.tabs button {
+  background: none; border: none; cursor: pointer;
+  color: var(--ink-3); font-size: 10.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 3px 9px; border-radius: 6px;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+.tabs button[aria-selected="true"] { color: var(--ink); background: var(--raised-2); }
+#designer form { padding: 16px; display: flex; flex-direction: column; gap: 13px; }
+label.field { display: flex; flex-direction: column; gap: 5px; font-size: 11.5px; color: var(--ink-2); }
+.field input, .field select, .field textarea, #yaml-editor {
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+  border-radius: 7px;
+  padding: 7px 10px;
+  color: var(--ink);
+  transition: border-color 150ms ease;
+}
+.field input:hover, .field select:hover, .field textarea:hover { border-color: var(--hairline-2); }
+.field textarea { resize: vertical; min-height: 70px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+.check input { accent-color: var(--ink); width: 14px; height: 14px; }
+fieldset {
+  border: 1px solid var(--hairline); border-radius: 10px;
+  padding: 12px; margin: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+legend {
+  font-size: 10.5px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.08em; padding: 0 5px;
+}
+/* concentric: inner inputs r6 + card padding 10 = card r16 */
+.tool-card {
+  border-radius: 16px;
+  padding: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+.tool-card input, .tool-card textarea {
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: 6px; padding: 6px 9px;
+  transition: border-color 150ms ease;
+}
+.tool-card .tool-head { display: flex; gap: 8px; align-items: center; }
+.tool-card .tool-head input { flex: 1; font-family: var(--mono); font-size: 12px; }
+.btn {
+  background: var(--raised); border: 1px solid var(--hairline);
+  border-radius: 8px; padding: 6px 13px; cursor: pointer;
+  color: var(--ink); font-weight: 500; font-size: 12.5px;
+  transition: transform 160ms var(--ease-out), border-color 150ms ease, background-color 150ms ease;
+}
+.btn:active { transform: scale(0.96); }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { border-color: var(--hairline-2); }
+  .btn.primary:hover { background: #ffffff; }
+}
+.btn.primary { background: var(--ink); border-color: transparent; color: #111111; font-weight: 550; }
+.btn.ghost { background: none; }
+.btn.small { padding: 3px 10px; font-size: 12px; }
+.btn.danger { color: var(--ink-3); }
+.btn.danger:active { color: var(--critical); }
+#yaml-editor {
+  font-family: var(--mono); font-size: 12px; line-height: 1.6;
+  width: 100%; flex: 1; border-radius: 0; border: none; background: var(--surface);
+  padding: 16px; resize: none; white-space: pre; min-height: 0;
+}
+#yaml-pane { display: none; flex-direction: column; flex: 1; min-height: 0; }
+#save-msg { font-size: 12px; min-height: 17px; color: var(--ink-3); }
+#save-msg.ok { color: var(--good); }
+#save-msg.err { color: var(--critical); white-space: pre-wrap; font-family: var(--mono); font-size: 11px; }
+.designer-foot {
+  display: flex; gap: 10px; align-items: center;
+  padding: 12px 16px; border-top: 1px solid var(--hairline);
+}
+.notice {
+  margin: 12px 16px 0; padding: 8px 12px; border-radius: 8px;
+  background: var(--raised); box-shadow: 0 0 0 1px var(--hairline);
+  color: var(--ink-2); font-size: 12px;
+}
+
+/* ---------------------------------------------------------------- console */
+#transcript { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.empty {
+  margin: auto; text-align: center; color: var(--ink-3); font-size: 12.5px;
+  display: flex; flex-direction: column; gap: 10px; align-items: center;
+  max-width: 300px;
+}
+.empty .bell-big { font-size: 22px; opacity: 0.35; }
+.bubble, .toolcard, .sysline, .interrupt {
+  transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out);
+  @starting-style { opacity: 0; transform: translateY(4px); }
+}
+.bubble {
+  max-width: 82%; padding: 7px 12px; border-radius: 12px;
+  white-space: pre-wrap; overflow-wrap: break-word;
+  font-size: 13px;
+}
+.bubble.user { align-self: flex-end; background: var(--raised-2); }
+.bubble.bot  { align-self: flex-start; background: var(--raised); box-shadow: 0 0 0 1px var(--hairline); }
+.sysline { align-self: center; color: var(--ink-3); font-size: 11.5px; }
+.sysline.bad { color: var(--critical); }
+.toolcard {
+  align-self: flex-start;
+  border-radius: 14px;   /* concentric: content r? none nested; matched to bubbles+2 */
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--hairline);
+  padding: 8px 12px; font-size: 12px; max-width: 82%;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.toolcard .tname { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+.toolcard .tname::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--s2); margin-right: 7px; vertical-align: 1px; }
+.toolcard .waiting { color: var(--accent); font-style: italic; }
+.toolcard .result { color: var(--ink-3); }
+.toolcard.failed .tname::before { background: var(--critical); }
+.toolcard .fail { color: var(--critical); }
+.interrupt {
+  align-self: center; font-size: 11px; color: var(--ink-3);
+  box-shadow: 0 0 0 1px var(--hairline); border-radius: 999px;
+  padding: 2px 11px;
+}
+#composer {
+  display: flex; gap: 8px; padding: 12px 16px;
+  border-top: 1px solid var(--hairline);
+}
+#composer input {
+  flex: 1; background: var(--raised); border: 1px solid var(--hairline);
+  border-radius: 8px; padding: 8px 12px; color: var(--ink);
+  transition: border-color 150ms ease;
+}
+#composer input:focus { border-color: var(--hairline-2); outline: none; }
+#speech-meter { height: 2px; position: relative; overflow: hidden; }
+#speech-meter .bar {
+  position: absolute; inset: 0; transform: scaleX(0); transform-origin: left;
+  background: var(--ink-3);
+  transition: transform 120ms linear, opacity 300ms ease;
+}
+.console-head-actions { margin-left: auto; display: flex; gap: 6px; }
+
+/* ------------------------------------------------------------- cost panel */
+#cost-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.hero { display: flex; align-items: baseline; gap: 8px; }
+.hero .amount {
+  font-size: 26px; font-weight: 600; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.hero .unit { color: var(--ink-3); font-size: 11.5px; }
+.est-chip {
+  display: none; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--warning);
+  box-shadow: 0 0 0 1px var(--hairline); border-radius: 999px;
+  padding: 2px 10px; width: fit-content; margin-top: 8px;
+}
+.est-chip.show { display: inline-flex; }
+.bars { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: 68px 1fr 72px; gap: 10px; align-items: center; }
+.bar-row .lbl { font-size: 11.5px; color: var(--ink-2); }
+.bar-row .val {
+  font-family: var(--mono); font-size: 11px; text-align: right;
+  font-variant-numeric: tabular-nums; color: var(--ink-2);
+}
+.bar-track { height: 8px; }
+.bar-fill {
+  height: 100%; border-radius: 0 3px 3px 0;
+  min-width: 2px;
+  transition: width 200ms var(--ease-out);
+}
+.bar-row[data-c="stt"]   .bar-fill { background: var(--s1); }
+.bar-row[data-c="llm"]   .bar-fill { background: var(--s2); }
+.bar-row[data-c="tts"]   .bar-fill { background: var(--s3); }
+.bar-row[data-c="other"] .bar-fill { background: var(--s4); }
+#cost-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+#cost-table th {
+  text-align: left; color: var(--ink-3); font-weight: 500;
+  padding: 4px 6px; border-bottom: 1px solid var(--hairline);
+}
+#cost-table td { padding: 4px 6px; color: var(--ink-2); border-bottom: 1px solid var(--hairline); }
+#cost-table tr:last-child td { border-bottom: none; }
+#cost-table td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
+#cost-table td .est { color: var(--warning); }
+
+/* ----------------------------------------------------------------- events */
+#event-filters { display: flex; gap: 5px; flex-wrap: wrap; padding: 12px 16px 0; }
+#event-filters button {
+  background: none; border: 1px solid var(--hairline); border-radius: 999px;
+  color: var(--ink-3); font-size: 11px; padding: 2px 10px; cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+#event-filters button[aria-pressed="true"] { color: var(--ink-2); border-color: var(--hairline-2); }
+#event-log { flex: 1; padding: 10px 16px 16px; font-size: 11.5px; display: flex; flex-direction: column; gap: 5px; }
+.ev { display: grid; grid-template-columns: 40px 128px 1fr; gap: 8px; align-items: baseline; }
+.ev .t { color: var(--ink-3); font-family: var(--mono); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.ev .k {
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ev .k::before {
+  content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  margin-right: 6px; vertical-align: 1px; background: var(--ink-3);
+}
+.ev .k[data-g="speech"]::before { background: var(--s1); }
+.ev .k[data-g="tool"]::before   { background: var(--s2); }
+.ev .k[data-g="cost"]::before   { background: var(--s3); }
+.ev .k[data-g="session"]::before{ background: var(--ink-3); }
+.ev .k[data-g="error"]::before  { background: var(--critical); }
+.ev .k[data-g="error"] { color: var(--critical); }
+.ev .s { color: var(--ink-3); overflow-wrap: anywhere; }
+
+/* tooltip */
+#tip {
+  position: fixed; z-index: 10; pointer-events: none; display: none;
+  background: var(--raised-2);
+  box-shadow: 0 0 0 1px var(--hairline-2), 0 8px 24px rgba(0, 0, 0, 0.5);
+  border-radius: 8px; padding: 7px 10px; font-size: 11.5px;
+  opacity: 0;
+  transition: opacity 125ms var(--ease-out);
+}
+#tip.show { display: block; opacity: 1; }
+#tip .tt-title { font-weight: 550; margin-bottom: 2px; }
+#tip .tt-line { color: var(--ink-2); font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1100px) {
+  main { grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(300px, auto); height: auto; }
+  .col.right { grid-column: 1 / -1; flex-direction: row; }
+  .col.right .panel { flex: 1; min-height: 320px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo"><span class="bell">🔔</span>tring<span class="studio">studio</span></span>
+  <span id="agent-name"></span>
+  <span id="conn"><span class="dot"></span><span id="conn-label">disconnected</span></span>
+</header>
+
+<main>
+  <!-- ─────────────────────────── agent designer ─────────────────────────── -->
+  <section class="panel" id="designer" aria-label="Agent designer">
+    <h2>Agent
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tab-form" aria-selected="true">Form</button>
+        <button role="tab" id="tab-yaml" aria-selected="false">YAML</button>
+      </div>
+    </h2>
+    <div id="yaml-notice" class="notice" hidden>
+      Hand-written YAML detected. Edit it in the YAML tab; the form view
+      activates after the next save from Studio.
+    </div>
+    <div id="form-pane" class="scroll" style="flex:1">
+      <form id="agent-form" autocomplete="off">
+        <div class="row">
+          <label class="field">Name <input name="name" required></label>
+          <label class="field">Greeting <input name="greeting" placeholder="optional"></label>
+        </div>
+        <label class="field">Persona <textarea name="persona" required></textarea></label>
+        <div class="row3">
+          <label class="field">Language <input name="lang" value="en" size="4"></label>
+          <label class="field">Mode
+            <select name="mode"><option>cascade</option><option>s2s</option><option>hybrid</option></select>
+          </label>
+          <label class="check" style="align-self:end; padding-bottom:8px">
+            <input type="checkbox" name="lock" checked> Language lock
+          </label>
+        </div>
+        <fieldset>
+          <legend>Default routing</legend>
+          <div class="row3">
+            <label class="field">STT <select name="stt"></select></label>
+            <label class="field">LLM <select name="llm"></select></label>
+            <label class="field">TTS <select name="tts"></select></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Tools</legend>
+          <div id="tools" style="display:flex;flex-direction:column;gap:8px"></div>
+          <button type="button" class="btn small ghost" id="add-tool">+ Add tool</button>
+        </fieldset>
+      </form>
+    </div>
+    <div id="yaml-pane">
+      <textarea id="yaml-editor" spellcheck="false" aria-label="Agent YAML"></textarea>
+    </div>
+    <div class="designer-foot">
+      <button class="btn primary" id="save">Save agent</button>
+      <span id="save-msg" role="status"></span>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────── test console ──────────────────────────── -->
+  <section class="panel" aria-label="Test console">
+    <h2>Test console
+      <div class="console-head-actions">
+        <button class="btn small" id="start">Start</button>
+        <button class="btn small ghost" id="reset" disabled>Reset</button>
+      </div>
+    </h2>
+    <div id="transcript" class="scroll" aria-live="polite">
+      <div class="empty" id="empty">
+        <span class="bell-big">🔔</span>
+        <span>Save an agent, then <strong>Start</strong> a session.
+        Every event streams into the panels on the right.</span>
+      </div>
+    </div>
+    <div id="speech-meter" aria-hidden="true"><div class="bar"></div></div>
+    <form id="composer">
+      <input id="say" placeholder="Say something…" disabled aria-label="Message">
+      <button class="btn primary" id="send" disabled>Send</button>
+    </form>
+  </section>
+
+  <!-- ──────────────────────────── right column ─────────────────────────── -->
+  <div class="col right">
+    <section class="panel" aria-label="Cost" style="flex:0 0 auto">
+      <h2>Cost</h2>
+      <div id="cost-body">
+        <div>
+          <div class="hero"><span class="amount" id="cost-total">$0.00000</span><span class="unit">this session</span></div>
+          <span class="est-chip" id="est-chip">⚠︎ <span id="est-label"></span></span>
+        </div>
+        <div class="bars" id="cost-bars"></div>
+        <table id="cost-table" hidden>
+          <thead><tr><th>provider</th><th>units</th><th style="text-align:right">amount</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel" aria-label="Events" style="flex:1">
+      <h2>Events <span id="ev-count" style="margin-left:auto;color:var(--ink-3);font-weight:400"></span></h2>
+      <div id="event-filters" role="group" aria-label="Filter events"></div>
+      <div id="event-log" class="scroll"></div>
+    </section>
+  </div>
+</main>
+
+<div id="tip" role="tooltip"></div>
+
+<script>
+"use strict";
+/* tring studio — single-file frontend. Protocol: docs/STUDIO_PROTOCOL.md. */
+
+const $ = (sel) => document.querySelector(sel);
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+};
+const fmtUSD = (v, currency) =>
+  (currency && currency !== "USD" ? currency + " " : "$") +
+  (v >= 0.01 ? v.toFixed(4) : v.toFixed(5));
+
+/* ------------------------------------------------------------ agent state */
+/* The form serializes to JSON (valid YAML), so the server's yaml.safe_load
+   path stays untouched. Hand-written YAML falls back to raw-editor mode
+   rather than a lossy round-trip through a half-baked JS YAML parser. */
+let spec = null;
+let yamlOnly = false;
+let meta = { providers: { stt: [], llm: [], tts: [] }, version: "" };
+
+async function loadMeta() {
+  meta = await (await fetch("/api/meta")).json();
+  for (const slot of ["stt", "llm", "tts"]) {
+    const sel = document.querySelector(`select[name=${slot}]`);
+    sel.replaceChildren(...(meta.providers[slot] || []).map((p) => new Option(p, p)));
+  }
+}
+
+async function loadAgent() {
+  const { yaml } = await (await fetch("/api/agent")).json();
+  $("#yaml-editor").value = yaml;
+  try {
+    spec = JSON.parse(yaml);
+    yamlOnly = false;
+  } catch {
+    spec = null;
+    yamlOnly = true;
+  }
+  $("#yaml-notice").hidden = !yamlOnly;
+  if (yamlOnly) switchTab("yaml");
+  else fillForm(spec);
+  $("#agent-name").textContent = specName();
+}
+
+function specName() {
+  if (spec?.name) return spec.name;
+  const m = $("#yaml-editor").value.match(/^name:\s*(.+)$/m);
+  return m ? m[1].trim() : "";
+}
+
+function fillForm(s) {
+  const f = document.forms["agent-form"];
+  f.name.value = s.name || "";
+  f.greeting.value = s.greeting || "";
+  f.persona.value = s.persona || "";
+  f.lang.value = s.language?.primary || "en";
+  f.lock.checked = s.language?.lock !== false;
+  f.mode.value = s.runtime?.mode || "cascade";
+  const routing = s.runtime?.routing?.default || {};
+  for (const slot of ["stt", "llm", "tts"]) {
+    if (routing[slot]) {
+      const sel = f[slot];
+      if (![...sel.options].some((o) => o.value === routing[slot]))
+        sel.add(new Option(routing[slot], routing[slot]));
+      sel.value = routing[slot];
+    }
+  }
+  $("#tools").replaceChildren(...(s.tools || []).map(toolCard));
+}
+
+function toolCard(tool = {}) {
+  const card = el("div", "tool-card");
+  const head = el("div", "tool-head");
+  const name = el("input"); name.placeholder = "tool_name"; name.value = tool.name || "";
+  const rm = el("button", "btn small ghost danger", "✕");
+  rm.type = "button"; rm.setAttribute("aria-label", "Remove tool");
+  rm.onclick = () => card.remove();
+  head.append(name, rm);
+  const desc = el("input"); desc.placeholder = "What this tool does (shown to the model)"; desc.value = tool.description || "";
+  const params = el("textarea"); params.rows = 3; params.spellcheck = false;
+  params.placeholder = '{"type": "object", "properties": {…}}';
+  params.value = tool.parameters ? JSON.stringify(tool.parameters, null, 2) : "";
+  params.style.fontFamily = "var(--mono)"; params.style.fontSize = "11px";
+  const foot = el("label", "check");
+  const cb = el("input"); cb.type = "checkbox"; cb.checked = tool.choreographed !== false;
+  foot.append(cb, document.createTextNode(" choreographed (no dead air)"));
+  card.append(head, desc, params, foot);
+  card._read = () => {
+    if (!name.value.trim()) return null;
+    let p = {};
+    if (params.value.trim()) p = JSON.parse(params.value); // surfaced by save handler
+    return { name: name.value.trim(), description: desc.value.trim(), parameters: p, choreographed: cb.checked };
+  };
+  return card;
+}
+$("#add-tool").onclick = () => $("#tools").append(toolCard());
+
+function readForm() {
+  const f = document.forms["agent-form"];
+  const tools = [...$("#tools").children].map((c) => c._read()).filter(Boolean);
+  return {
+    name: f.name.value.trim(),
+    ...(f.greeting.value.trim() && { greeting: f.greeting.value.trim() }),
+    persona: f.persona.value,
+    language: { primary: f.lang.value.trim() || "en", lock: f.lock.checked },
+    runtime: {
+      mode: f.mode.value,
+      routing: { default: { stt: f.stt.value, llm: f.llm.value, tts: f.tts.value } },
+    },
+    tools,
+  };
+}
+
+/* tabs */
+function switchTab(which) {
+  const yaml = which === "yaml";
+  $("#tab-yaml").setAttribute("aria-selected", yaml);
+  $("#tab-form").setAttribute("aria-selected", !yaml);
+  $("#yaml-pane").style.display = yaml ? "flex" : "none";
+  $("#form-pane").style.display = yaml ? "none" : "block";
+  if (yaml && !yamlOnly) {
+    try { $("#yaml-editor").value = JSON.stringify(readForm(), null, 2); } catch { /* keep last */ }
+  }
+}
+$("#tab-form").onclick = () => { if (!yamlOnly) switchTab("form"); };
+$("#tab-yaml").onclick = () => switchTab("yaml");
+
+$("#save").onclick = async () => {
+  const msg = $("#save-msg");
+  msg.className = ""; msg.textContent = "saving…";
+  let body;
+  try {
+    body = $("#tab-yaml").getAttribute("aria-selected") === "true" || yamlOnly
+      ? $("#yaml-editor").value
+      : JSON.stringify(readForm(), null, 2);
+  } catch (e) {
+    msg.className = "err"; msg.textContent = "tool parameters: " + e.message;
+    return;
+  }
+  const res = await (await fetch("/api/agent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ yaml: body }),
+  })).json();
+  if (res.ok) {
+    msg.className = "ok"; msg.textContent = "saved";
+    $("#yaml-editor").value = body;
+    try { spec = JSON.parse(body); yamlOnly = false; $("#yaml-notice").hidden = true; fillForm(spec); } catch { /* stays raw */ }
+    $("#agent-name").textContent = specName();
+  } else {
+    msg.className = "err"; msg.textContent = res.error || "rejected";
+  }
+};
+
+/* ----------------------------------------------------------- live session */
+let ws = null;
+const openToolCards = new Map(); // call_id -> element
+
+function setConn(state, label) {
+  $("#conn").className = state;
+  $("#conn-label").textContent = label;
+}
+
+$("#start").onclick = () => {
+  if (ws) ws.close();
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  setConn("", "connecting…");
+  ws.onopen = () => { ws.send(JSON.stringify({ type: "start" })); };
+  ws.onclose = () => { setConn("", "disconnected"); toggleComposer(false); ws = null; };
+  ws.onerror = () => setConn("err", "connection error");
+  ws.onmessage = (m) => handle(JSON.parse(m.data));
+};
+$("#reset").onclick = () => {
+  ws?.send(JSON.stringify({ type: "reset" }));
+  clearSession();
+};
+function sendText() {
+  const text = $("#say").value.trim();
+  if (!text || !ws) return;
+  ws.send(JSON.stringify({ type: "user_text", text }));
+  $("#say").value = "";
+}
+$("#composer").onsubmit = (e) => { e.preventDefault(); sendText(); };
+/* belt-and-braces: Enter must always send, regardless of focus quirks */
+$("#say").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendText(); }
+});
+
+function toggleComposer(on) {
+  $("#say").disabled = !on;
+  $("#send").disabled = !on;
+  $("#reset").disabled = !on;
+  if (on) $("#say").focus();
+}
+
+function clearSession() {
+  $("#transcript").replaceChildren();
+  $("#event-log").replaceChildren();
+  openToolCards.clear();
+  resetCosts();
+  evCount = 0;
+  $("#ev-count").textContent = "";
+}
+
+function handle(msg) {
+  if (msg.type === "ready") {
+    clearSession();
+    setConn("live", "session live");
+    toggleComposer(true);
+    sysline(`session ${msg.session_id.slice(0, 8)} started`);
+    return;
+  }
+  if (msg.type === "audio_progress") {
+    const bar = $("#speech-meter .bar");
+    bar.style.transform = "scaleX(1)";
+    clearTimeout(bar._t);
+    bar._t = setTimeout(() => { bar.style.transform = "scaleX(0)"; }, 350);
+    return;
+  }
+  if (msg.type === "error") { sysline(msg.message, true); return; }
+  if (msg.type === "event") { onEvent(msg.event); }
+}
+
+function sysline(text, bad) {
+  appendToTranscript(el("div", "sysline" + (bad ? " bad" : ""), text));
+}
+function appendToTranscript(node) {
+  const t = $("#transcript");
+  $("#empty")?.remove();
+  t.append(node);
+  t.scrollTop = t.scrollHeight;
+}
+
+/* ------------------------------------------------------------- event feed */
+const GROUP = {
+  user_transcript: "speech", bot_utterance: "speech", bot_speech_played: "speech",
+  interruption: "speech",
+  tool_call_started: "tool", tool_call_completed: "tool",
+  cost_recorded: "cost",
+  session_started: "session", session_ended: "session",
+  error: "error",
+};
+let filters = new Set(Object.values(GROUP));
+let evCount = 0;
+
+(function buildFilters() {
+  const groups = [...new Set(Object.values(GROUP))];
+  const wrap = $("#event-filters");
+  for (const g of groups) {
+    const b = el("button", null, g);
+    b.setAttribute("aria-pressed", "true");
+    b.onclick = () => {
+      const on = b.getAttribute("aria-pressed") !== "true";
+      b.setAttribute("aria-pressed", String(on));
+      on ? filters.add(g) : filters.delete(g);
+      for (const row of $("#event-log").children)
+        row.hidden = !filters.has(row.dataset.g);
+    };
+    wrap.append(b);
+  }
+})();
+
+function evSummary(e) {
+  switch (e.type) {
+    case "user_transcript": return `"${e.text}"`;
+    case "bot_utterance": return `"${e.text.slice(0, 90)}${e.text.length > 90 ? "…" : ""}"`;
+    case "bot_speech_played": return `played: "${e.text.slice(0, 60)}…"`;
+    case "interruption": return `unheard: "${e.unheard_text.slice(0, 60)}"`;
+    case "tool_call_started": return `${e.tool_name} (${e.spoken_mode ?? "?"})`;
+    case "tool_call_completed": return `${e.tool_name} ${e.ok ? "ok" : "FAILED"}${e.latency_seconds != null ? " in " + e.latency_seconds.toFixed(2) + "s" : ""}`;
+    case "cost_recorded": return `${e.provider} ${e.units.toFixed(1)} ${e.unit_name} → ${fmtUSD(e.amount, e.currency)}${e.estimated ? " (est)" : ""}`;
+    case "session_started": return `${e.agent_name} on ${e.runtime_mode}`;
+    case "session_ended": return `${e.reason}, ${e.duration_seconds.toFixed(1)}s`;
+    case "error": return e.message;
+    default: return "";
+  }
+}
+
+function onEvent(e) {
+  const g = GROUP[e.type] || "session";
+  const row = el("div", "ev");
+  row.dataset.g = g;
+  row.hidden = !filters.has(g);
+  const t = el("span", "t", e.at != null ? e.at.toFixed(1) + "s" : "");
+  const k = el("span", "k", e.type);
+  k.dataset.g = g;
+  row.append(t, k, el("span", "s", evSummary(e)));
+  const log = $("#event-log");
+  log.append(row);
+  log.scrollTop = log.scrollHeight;
+  $("#ev-count").textContent = ++evCount;
+
+  switch (e.type) {
+    case "user_transcript":
+      if (e.final) appendToTranscript(el("div", "bubble user", e.text));
+      break;
+    case "bot_utterance":
+      appendToTranscript(el("div", "bubble bot", e.text));
+      break;
+    case "interruption":
+      appendToTranscript(el("div", "interrupt", "caller interrupted — unheard text annotated"));
+      break;
+    case "tool_call_started": {
+      const card = el("div", "toolcard");
+      card.append(el("span", "tname", e.tool_name));
+      if (e.waiting_message) card.append(el("span", "waiting", "“" + e.waiting_message + "”"));
+      openToolCards.set(e.call_id, card);
+      appendToTranscript(card);
+      break;
+    }
+    case "tool_call_completed": {
+      const card = openToolCards.get(e.call_id);
+      if (card) {
+        openToolCards.delete(e.call_id);
+        if (e.ok) {
+          card.append(el("span", "result",
+            `done in ${e.latency_seconds?.toFixed(2) ?? "?"}s` + (e.result_summary ? " — " + e.result_summary : "")));
+        } else {
+          card.classList.add("failed");
+          card.append(el("span", "fail", e.result_summary || "failed"));
+        }
+      }
+      break;
+    }
+    case "cost_recorded": addCost(e); break;
+    case "session_ended":
+      sysline(`session ended (${e.reason})`);
+      toggleComposer(false);
+      setConn("", "session ended");
+      break;
+    case "error": sysline(e.message, true); break;
+  }
+}
+
+/* ------------------------------------------------------------- cost panel */
+const COMPONENT_SLOT = { stt: "stt", llm: "llm", tts: "tts" }; // rest fold to "other"
+let costs = [];
+
+function resetCosts() { costs = []; renderCosts(); }
+function addCost(e) { costs.push(e); renderCosts(); }
+
+function renderCosts() {
+  const total = costs.reduce((a, c) => a + c.amount, 0);
+  const estAmt = costs.filter((c) => c.estimated).reduce((a, c) => a + c.amount, 0);
+  $("#cost-total").textContent = fmtUSD(total, costs[0]?.currency);
+  const chip = $("#est-chip");
+  if (estAmt > 0) {
+    chip.classList.add("show");
+    $("#est-label").textContent =
+      `${Math.round((estAmt / total) * 100)}% of this total is estimated, not vendor-reported`;
+  } else chip.classList.remove("show");
+
+  const by = new Map();
+  for (const c of costs) {
+    const key = COMPONENT_SLOT[c.component] || "other";
+    by.set(key, (by.get(key) || 0) + c.amount);
+  }
+  const max = Math.max(...by.values(), 1e-12);
+  const wrap = $("#cost-bars");
+  wrap.replaceChildren();
+  for (const key of ["stt", "llm", "tts", "other"]) {
+    if (!by.has(key)) continue;
+    const row = el("div", "bar-row");
+    row.dataset.c = key;
+    const track = el("div", "bar-track");
+    const fill = el("div", "bar-fill");
+    fill.style.width = (by.get(key) / max) * 100 + "%";
+    track.append(fill);
+    row.append(el("span", "lbl", key), track, el("span", "val", fmtUSD(by.get(key))));
+    attachTip(row, () => ({
+      title: key,
+      lines: costs.filter((c) => (COMPONENT_SLOT[c.component] || "other") === key)
+        .map((c) => `${c.provider}: ${c.units.toFixed(1)} ${c.unit_name} → ${fmtUSD(c.amount)}`),
+    }));
+    wrap.append(row);
+  }
+
+  const tbody = $("#cost-table tbody");
+  tbody.replaceChildren();
+  const byProv = new Map();
+  for (const c of costs) {
+    const key = `${c.provider} · ${c.unit_name}`;
+    const cur = byProv.get(key) || { units: 0, amount: 0, est: false };
+    cur.units += c.units; cur.amount += c.amount; cur.est ||= c.estimated;
+    byProv.set(key, cur);
+  }
+  for (const [key, v] of byProv) {
+    const tr = el("tr");
+    const [prov, unit] = key.split(" · ");
+    tr.append(el("td", null, prov));
+    const units = el("td", "num", v.units.toFixed(1) + " " + unit);
+    if (v.est) units.append(Object.assign(el("span", "est", " ~est"), { title: "estimated, not vendor-reported" }));
+    tr.append(units, el("td", "num", fmtUSD(v.amount)));
+    tbody.append(tr);
+  }
+  $("#cost-table").hidden = byProv.size === 0;
+}
+
+/* --------------------------------------------------------------- tooltip */
+function attachTip(node, build) {
+  node.addEventListener("mousemove", (ev) => {
+    const { title, lines } = build();
+    const tip = $("#tip");
+    tip.replaceChildren(el("div", "tt-title", title),
+      ...lines.map((l) => el("div", "tt-line", l)));
+    tip.classList.add("show");
+    const pad = 14;
+    tip.style.left = Math.min(ev.clientX + pad, innerWidth - tip.offsetWidth - pad) + "px";
+    tip.style.top = Math.min(ev.clientY + pad, innerHeight - tip.offsetHeight - pad) + "px";
+  });
+  node.addEventListener("mouseleave", () => { $("#tip").classList.remove("show"); });
+}
+
+/* ------------------------------------------------------------------ boot */
+(async () => {
+  try { await loadMeta(); } catch { setConn("err", "server unreachable"); }
+  try { await loadAgent(); } catch { /* blank form is the empty state */ }
+  renderCosts();
+})();
+</script>
+</body>
+</html>
